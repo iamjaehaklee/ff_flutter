@@ -81,7 +81,7 @@ class _DraggablePageControllerState extends State<DraggablePageController> {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      right: 16,
+      right: 5,
       top: _currentY, // ✅ 위치 동적 업데이트
       child: GestureDetector(
         onVerticalDragStart: _onVerticalDragStart,

@@ -23,6 +23,7 @@ import 'package:legalfactfinder2025/features/work_room/data/work_room_repository
 import 'package:legalfactfinder2025/features/work_room/work_room_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:opencv_dart/opencv_dart.dart' as cv4;
 
 Future<void> initSupabase() async {
   await Supabase.initialize(
@@ -33,7 +34,10 @@ Future<void> initSupabase() async {
 late String initialRoute;
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized(); // Flutter framework 초기화
+  print("OpenCV version: ${  cv4.openCvVersion()}");
+
   await initSupabase(); // Supabase 초기화
 
 

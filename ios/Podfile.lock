@@ -1,6 +1,37 @@
 PODS:
   - app_links (0.0.2):
     - Flutter
+  - DartCvIOS (4.11.0.1):
+    - DartCvIOS/calib3d (= 4.11.0.1)
+    - DartCvIOS/contrib (= 4.11.0.1)
+    - DartCvIOS/core (= 4.11.0.1)
+    - DartCvIOS/features2d (= 4.11.0.1)
+    - DartCvIOS/imgproc (= 4.11.0.1)
+    - DartCvIOS/objdetect (= 4.11.0.1)
+    - DartCvIOS/photo (= 4.11.0.1)
+    - DartCvIOS/stitching (= 4.11.0.1)
+    - DartCvIOS/video (= 4.11.0.1)
+  - DartCvIOS/calib3d (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/contrib (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/core (4.11.0.1)
+  - DartCvIOS/dnn (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/features2d (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/imgproc (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/objdetect (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/photo (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/stitching (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/video (4.11.0.1):
+    - DartCvIOS/core
+  - DartCvIOS/videoio (4.11.0.1):
+    - DartCvIOS/core
   - device_info_plus (0.0.1):
     - Flutter
   - DKImagePickerController/Core (4.3.4):
@@ -102,11 +133,17 @@ PODS:
     - nanopb/encode (= 3.30910.0)
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
+  - opencv_dart (0.0.1):
+    - DartCvIOS (= 4.11.0.1)
+    - DartCvIOS/dnn (= 4.11.0.1)
+    - DartCvIOS/videoio (= 4.11.0.1)
+    - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - pdf_render (0.0.1):
+  - pdfrx (0.0.3):
     - Flutter
+    - FlutterMacOS
   - permission_handler_apple (9.3.0):
     - Flutter
   - PromisesObjC (2.4.0)
@@ -137,8 +174,9 @@ DEPENDENCIES:
   - google_mlkit_commons (from `.symlinks/plugins/google_mlkit_commons/ios`)
   - google_mlkit_text_recognition (from `.symlinks/plugins/google_mlkit_text_recognition/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - opencv_dart (from `.symlinks/plugins/opencv_dart/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
-  - pdf_render (from `.symlinks/plugins/pdf_render/ios`)
+  - pdfrx (from `.symlinks/plugins/pdfrx/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - speech_to_text (from `.symlinks/plugins/speech_to_text/darwin`)
@@ -147,6 +185,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - DartCvIOS
     - DKImagePickerController
     - DKPhotoGallery
     - flutter_sound_core
@@ -185,10 +224,12 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/google_mlkit_text_recognition/ios"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
+  opencv_dart:
+    :path: ".symlinks/plugins/opencv_dart/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
-  pdf_render:
-    :path: ".symlinks/plugins/pdf_render/ios"
+  pdfrx:
+    :path: ".symlinks/plugins/pdfrx/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
   shared_preferences_foundation:
@@ -202,6 +243,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: e7a6750a915a9e161c58d91bc610e8cd1d4d0ad0
+  DartCvIOS: 84b1f3599edbe8a00c63b0a90751d4b11c20d933
   device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
   DKImagePickerController: b512c28220a2b8ac7419f21c491fc8534b7601ac
   DKPhotoGallery: fdfad5125a9fdda9cc57df834d49df790dbb4179
@@ -224,8 +266,9 @@ SPEC CHECKSUMS:
   MLKitTextRecognitionCommon: cd44577a8c506fc6bba065096de03bec0d01a213
   MLKitVision: 45e79d68845a2de77e2dd4d7f07947f0ed157b0e
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  opencv_dart: 416b45e147fdd9bfe506a67ff8d1a1d1c3d0cbd9
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  pdf_render: 0b4e1a615aab83ce88b26c57753049424908a755
+  pdfrx: 07fc287c47ea8d027c4ed56457f8a1aa74d73594
   permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   SDWebImage: 9bec4c5cdd9579e1f57104735ee0c37df274d593
