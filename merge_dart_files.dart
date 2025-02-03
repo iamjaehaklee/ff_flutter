@@ -1,8 +1,8 @@
 import 'dart:io';
 
 void main() async {
-  final String targetDirectory = "./lib"; // 여기에 원하는 폴더 경로를 설정하세요.
-  final String outputFileName = "merged_dart_files.txt";
+  final String targetDirectory = "./lib/features/chat"; // 여기에 원하는 폴더 경로를 설정하세요.
+  final String outputFileName = "merged_dart_files_chat.txt";
 
   final File outputFile = File(outputFileName);
   if (outputFile.existsSync()) {
@@ -25,3 +25,4 @@ Future<void> mergeDartFiles(Directory directory, IOSink sink) async {
     }
   }
 }
+// dart merge_dart_files.dart

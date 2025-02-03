@@ -1,0 +1,1643 @@
+
+// ===== FILE: ./lib/features/chat/message_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_repository.dart';
+
+class MessageController extends GetxController {
+  final MessageRepository _chatRepository;
+
+  MessageController(this._chatRepository);
+
+  // Observable for regular messages
+  var messages = <Message>[].obs;
+  var isLoading = false.obs; // Loading state for regular messages
+
+  // Fetch messages for a work room
+  Future<void> loadMessages(String workRoomId, {int limit = 20, int offset = 0}) async {
+    print('loadMessages with workRoomId : '  + workRoomId);
+    isLoading.value = true; // Start loading
+    try {
+      final fetchedMessages = await _chatRepository.fetchMessages(
+        workRoomId,
+        limit: limit,
+        offset: offset,
+      );
+      messages.value = fetchedMessages; // Update the observable list
+    } catch (e) {
+      print('Error loading messages: $e');
+    } finally {
+      isLoading.value = false; // End loading
+    }
+  }
+
+  // Send a message to the work room
+  Future<void> sendMessage({
+    required String workRoomId,
+    required String senderId,
+    required String content,
+  }) async {
+    try {
+      final newMessage = await _chatRepository.sendMessage(
+        workRoomId: workRoomId,
+        senderId: senderId,
+        content: content,
+      );
+      messages.insert(0, newMessage); // Add the new message to the top of the list
+    } catch (e) {
+      print('Error sending message: $e');
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/thread_message_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_message_repository.dart';
+
+class ThreadMessageController extends GetxController {
+  final ThreadMessageRepository _repository;
+
+  ThreadMessageController(this._repository);
+
+  var threadMessages = <Message>[].obs;
+  var parentMessage = Rxn<Message>(); // Observable for the parent message
+  var isLoading = false.obs;
+
+  // Fetch messages in a thread
+  Future<void> loadThreadMessages(String parentMessageId) async {
+    isLoading.value = true; // Start loading
+    try {
+      // Fetch thread messages
+      final fetchedMessages = await _repository.fetchThreadMessages(parentMessageId);
+      threadMessages.value = fetchedMessages;
+
+      // Fetch the parent message
+      final fetchedParentMessage = await _repository.fetchParentMessage(parentMessageId);
+      parentMessage.value = fetchedParentMessage;
+    } catch (e) {
+      print('Error loading thread messages: $e');
+    } finally {
+      isLoading.value = false; // End loading
+    }
+  }
+
+  // Send a message in a thread
+  Future<void> sendThreadMessage({
+    required String workRoomId,
+    required String senderId,
+    required String content,
+    required String parentMessageId,
+  }) async {
+    try {
+      final newMessage = await _repository.sendThreadMessage(
+        workRoomId: workRoomId,
+        senderId: senderId,
+        content: content,
+        parentMessageId: parentMessageId,
+      );
+      threadMessages.add(newMessage);
+    } catch (e) {
+      print('Error sending thread message: $e');
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/thread_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_model.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_repository.dart';
+
+class ThreadController extends GetxController {
+  final ThreadRepository _threadRepository;
+
+  ThreadController(this._threadRepository);
+
+  // Observable for threads
+  var threads = <Thread>[].obs;
+  var isThreadsLoading = false.obs; // Loading state for threads
+
+  // Fetch threads for a specific work room
+  Future<void> loadThreads(String workRoomId) async {
+    isThreadsLoading.value = true; // Start loading
+    try {
+      final fetchedThreads = await _threadRepository.fetchThreads(workRoomId);
+      threads.value = fetchedThreads; // Update the observable list
+    } catch (e) {
+      print('Error loading threads: $e');
+    } finally {
+      isThreadsLoading.value = false; // End loading
+    }
+  }
+
+  // Refresh threads for real-time updates
+  Future<void> refreshThreads(String workRoomId) async {
+    try {
+      final refreshedThreads = await _threadRepository.fetchThreads(workRoomId);
+      threads.value = refreshedThreads; // Update threads with refreshed data
+    } catch (e) {
+      print('Error refreshing threads: $e');
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/data/thread_model.dart =====
+
+class Thread {
+  final String id;
+  final String parentMessageId;
+  final String threadContent;
+  final String? latestReplyContent;
+  final String? latestReplySenderId;
+  final DateTime? latestReplyUpdatedAt;
+  final int threadCount;
+
+  Thread({
+    required this.id,
+    required this.parentMessageId,
+    required this.threadContent,
+    this.latestReplyContent,
+    this.latestReplySenderId,
+    this.latestReplyUpdatedAt,
+    required this.threadCount,
+  });
+
+  // Factory constructor to parse JSON data into a Thread object
+  factory Thread.fromJson(Map<String, dynamic> json) {
+    return Thread(
+      id: json['id'],
+      parentMessageId: json['parent_message_id'],
+      threadContent: json['thread_content'],
+      latestReplyContent: json['latest_reply_content'],
+      latestReplySenderId: json['latest_reply_sender_id'],
+      latestReplyUpdatedAt: json['latest_reply_updated_at'] != null
+          ? DateTime.parse(json['latest_reply_updated_at'])
+          : null,
+      threadCount: json['thread_count'],
+    );
+  }
+
+  // Convert Thread object to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'parent_message_id': parentMessageId,
+      'thread_content': threadContent,
+      'latest_reply_content': latestReplyContent,
+      'latest_reply_sender_id': latestReplySenderId,
+      'latest_reply_updated_at':
+      latestReplyUpdatedAt?.toIso8601String(),
+      'thread_count': threadCount,
+    };
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/data/thread_message_repository.dart =====
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+
+class ThreadMessageRepository {
+  final String getThreadMessagesEdgeFunctionUrl;
+  final String getParentMessageEdgeFunctionUrl; // New endpoint for parent message
+  final String putThreadMessageEdgeFunctionUrl;
+  final String jwtToken;
+
+  ThreadMessageRepository({
+    required this.getThreadMessagesEdgeFunctionUrl,
+    required this.getParentMessageEdgeFunctionUrl,
+    required this.putThreadMessageEdgeFunctionUrl,
+    required this.jwtToken,
+  });
+
+  // Fetch messages in a thread
+  Future<List<Message>> fetchThreadMessages(String parentMessageId) async {
+    final uri = Uri.parse(
+        '$getThreadMessagesEdgeFunctionUrl?parent_message_id=$parentMessageId');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=utf-8', // Ensure UTF-8 encoding
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+
+      final List<dynamic> data = jsonDecode(decodedResponse);
+      return data.map((messageJson) => Message.fromJson(messageJson)).toList();
+    } else {
+      throw Exception("Failed to fetch thread messages: ${response.body}");
+    }
+  }
+
+  // Fetch the parent message
+// Fetch the parent message
+  Future<Message> fetchParentMessage(String parentMessageId) async {
+    final uri = Uri.parse(getParentMessageEdgeFunctionUrl);
+
+    // Log the request for debugging
+    print("Fetching parent message with ID: $parentMessageId");
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=utf-8', // Ensure UTF-8 encoding
+      },
+      body: jsonEncode({"message_id": parentMessageId}), // Send message_id in the body
+    );
+
+    // Log the response for debugging
+    print("Response status: ${response.statusCode}");
+    print("Response body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+
+      final data = jsonDecode(decodedResponse);
+      return Message.fromJson(data);
+    } else {
+      throw Exception("Failed to fetch parent message: ${response.body}");
+    }
+  }
+
+  // Send a message in a thread
+  Future<Message> sendThreadMessage({
+    required String workRoomId,
+    required String senderId,
+    required String content,
+    required String parentMessageId,
+  }) async {
+    final uri = Uri.parse(putThreadMessageEdgeFunctionUrl);
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=utf-8', // Ensure UTF-8 encoding
+      },
+      body: jsonEncode({
+        "work_room_id": workRoomId,
+        "sender_id": senderId,
+        "content": content,
+        "message_type": "text",
+        "parent_message_id": parentMessageId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+
+      final responseData = jsonDecode(decodedResponse);
+      return Message.fromJson(responseData[0]);
+    } else {
+      throw Exception("Failed to send thread message: ${response.body}");
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/data/message_repository.dart =====
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+
+class MessageRepository {
+  final String getChatMessagesEdgeFunctionUrl; // Supabase Edge Function URL
+  final String putChatMessageEdgeFunctionUrl;
+  final String jwtToken;
+
+  MessageRepository(
+      {required this.getChatMessagesEdgeFunctionUrl,
+      required this.putChatMessageEdgeFunctionUrl,
+      required this.jwtToken});
+
+  Future<List<Message>> fetchMessages(String workRoomId,
+      {int limit = 20, int offset = 0}) async {
+    final uri = Uri.parse(
+        '$getChatMessagesEdgeFunctionUrl?work_room_id=$workRoomId&limit=$limit&offset=$offset');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=utf-8', // Ensure UTF-8 encoding
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+      final  List<dynamic> data = jsonDecode(decodedResponse);
+       return data.map((messageJson) => Message.fromJson(messageJson)).toList();
+    } else {
+      throw Exception('Failed to fetch messages: ${response.body}');
+    }
+  }
+
+  Future<Message> sendMessage({
+    required String workRoomId,
+    required String senderId,
+    required String content,
+  }) async {
+    // Validate input parameters
+    if (workRoomId.isEmpty || senderId.isEmpty || content.isEmpty) {
+      throw Exception(
+          "Missing required parameters: workRoomId, senderId, or content");
+    }
+
+    final uri = Uri.parse(putChatMessageEdgeFunctionUrl);
+    final requestBody = jsonEncode({
+      "work_room_id": workRoomId,
+      "sender_id": senderId,
+      "content": content,
+      "message_type": "text",
+    });
+
+    // Log the request for debugging
+    print("Sending POST request to $uri with body: $requestBody");
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json',
+      },
+      body: requestBody,
+    );
+
+    // Log the raw response for debugging
+    print("Response status: ${response.statusCode}");
+    print("Response body: ${response.body}");
+
+    // Handle response
+    if (response.statusCode == 200) {
+      try {
+        final decodedResponse = utf8.decode(response.bodyBytes);
+
+        final responseData = jsonDecode(decodedResponse);
+        return Message.fromJson(responseData[
+            0]); // Assuming the response contains the inserted message
+      } catch (e) {
+        throw Exception("Failed to decode response: ${response.body}");
+      }
+    } else {
+      // Try to parse error as JSON, otherwise return raw response
+      try {
+        final errorData = jsonDecode(response.body);
+        throw Exception(
+            "Failed to send message: ${errorData['error'] ?? response.body}");
+      } catch (_) {
+        throw Exception("Failed to send message: ${response.body}");
+      }
+    }
+  }
+
+
+}
+
+
+// ===== FILE: ./lib/features/chat/data/thread_repository.dart =====
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:legalfactfinder2025/features/chat/data/thread_model.dart';
+
+class ThreadRepository {
+  final String getThreadsEdgeFunctionUrl;
+  final String jwtToken;
+
+  ThreadRepository({
+    required this.getThreadsEdgeFunctionUrl,
+    required this.jwtToken,
+  });
+
+  // Fetch threads for a work room
+  Future<List<Thread>> fetchThreads(String workRoomId) async {
+    final uri = Uri.parse(getThreadsEdgeFunctionUrl);
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=utf-8', // Ensure UTF-8 encoding
+      },
+      body: jsonEncode({"work_room_id": workRoomId}),
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+
+      final Map<String, dynamic> responseBody = jsonDecode(decodedResponse);
+      final List<dynamic> threadsData = responseBody['threads'] ?? [];
+      return threadsData.map((threadJson) => Thread.fromJson(threadJson)).toList();
+    } else {
+      throw Exception("Failed to fetch threads: ${response.body}");
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/data/message_model.g.dart =====
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'message_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+Message _$MessageFromJson(Map<String, dynamic> json) => Message(
+      id: json['id'] as String,
+      workRoomId: json['workRoomId'] as String,
+      senderId: json['senderId'] as String,
+      parentMessageId: json['parentMessageId'] as String?,
+      content: json['content'] as String,
+      messageType: json['messageType'] as String,
+      threadCount: (json['threadCount'] as num).toInt(),
+      hasAttachments: json['hasAttachments'] as bool,
+      attachmentFileStorageKey: json['attachmentFileStorageKey'] as String?,
+      attachmentFileType: json['attachmentFileType'] as String?,
+      highlight: json['highlight'] as String?,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      annotationId: json['annotationId'] as String?,
+      ocrText: json['ocrText'] as String?,
+      annotationImageStorageKey: json['annotationImageStorageKey'] as String?,
+      isSystem: json['isSystem'] as bool,
+      systemEventType: json['systemEventType'] as String?,
+      replyToMessageId: json['replyToMessageId'] as String?,
+      replyToMessageContent: json['replyToMessageContent'] as String?,
+      replyToMessageSenderId: json['replyToMessageSenderId'] as String?,
+      replyToMessageCreatedAt: json['replyToMessageCreatedAt'] == null
+          ? null
+          : DateTime.parse(json['replyToMessageCreatedAt'] as String),
+      imageFileId: json['imageFileId'] as String?,
+    );
+
+Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
+      'id': instance.id,
+      'workRoomId': instance.workRoomId,
+      'senderId': instance.senderId,
+      'parentMessageId': instance.parentMessageId,
+      'content': instance.content,
+      'messageType': instance.messageType,
+      'threadCount': instance.threadCount,
+      'hasAttachments': instance.hasAttachments,
+      'attachmentFileStorageKey': instance.attachmentFileStorageKey,
+      'attachmentFileType': instance.attachmentFileType,
+      'highlight': instance.highlight,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+      'annotationId': instance.annotationId,
+      'ocrText': instance.ocrText,
+      'annotationImageStorageKey': instance.annotationImageStorageKey,
+      'isSystem': instance.isSystem,
+      'systemEventType': instance.systemEventType,
+      'replyToMessageId': instance.replyToMessageId,
+      'replyToMessageContent': instance.replyToMessageContent,
+      'replyToMessageSenderId': instance.replyToMessageSenderId,
+      'replyToMessageCreatedAt':
+          instance.replyToMessageCreatedAt?.toIso8601String(),
+      'imageFileId': instance.imageFileId,
+    };
+
+
+// ===== FILE: ./lib/features/chat/data/chat_model.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/data/message_model.dart =====
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'message_model.g.dart';
+
+@JsonSerializable()
+class Message {
+  final String id;
+  final String workRoomId;
+  final String senderId;
+  final String? parentMessageId;
+  final String content;
+  final String messageType;
+  final int threadCount;
+  final bool hasAttachments;
+  final String? attachmentFileStorageKey;
+  final String? attachmentFileType;
+  final String? highlight;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? annotationId;
+  final String? ocrText;
+  final String? annotationImageStorageKey;
+  final bool isSystem;
+  final String? systemEventType;
+  final String? replyToMessageId;
+  final String? replyToMessageContent;
+  final String? replyToMessageSenderId;
+  final DateTime? replyToMessageCreatedAt;
+  final String? imageFileId;
+
+  Message({
+    required this.id,
+    required this.workRoomId,
+    required this.senderId,
+    this.parentMessageId,
+    required this.content,
+    required this.messageType,
+    required this.threadCount,
+    required this.hasAttachments,
+    this.attachmentFileStorageKey,
+    this.attachmentFileType,
+    this.highlight,
+    required this.createdAt,
+    required this.updatedAt,
+    this.annotationId,
+    this.ocrText,
+    this.annotationImageStorageKey,
+    required this.isSystem,
+    this.systemEventType,
+    this.replyToMessageId,
+    this.replyToMessageContent,
+    this.replyToMessageSenderId,
+    this.replyToMessageCreatedAt,
+    this.imageFileId,
+  });
+
+  // Null-safe factory method for JSON deserialization
+  factory Message.fromJson(Map<String, dynamic> json) {
+    return Message(
+      id: json['id'] as String? ?? '', // Default to empty string if null
+      workRoomId: json['work_room_id'] as String? ?? '',
+      senderId: json['sender_id'] as String? ?? '',
+      parentMessageId: json['parent_message_id'] as String?,
+      content: json['content'] as String? ?? '',
+      messageType: json['message_type'] as String? ?? 'text',
+      threadCount: json['thread_count'] as int? ?? 0,
+      hasAttachments: json['has_attachments'] as bool? ?? false,
+      attachmentFileStorageKey: json['attachment_file_storage_key'] as String?,
+      attachmentFileType: json['attachment_file_type'] as String?,
+      highlight: json['highlight'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] as String? ?? DateTime.now().toIso8601String()),
+      annotationId: json['annotation_id'] as String?,
+      ocrText: json['ocr_text'] as String?,
+      annotationImageStorageKey: json['annotation_image_file_storage_key'] as String?,
+      isSystem: json['is_system'] as bool? ?? false,
+      systemEventType: json['system_event_type'] as String?,
+      replyToMessageId: json['reply_to_message_id'] as String?,
+      replyToMessageContent: json['reply_to_message_content'] as String?,
+      replyToMessageSenderId: json['reply_to_message_sender_id'] as String?,
+      replyToMessageCreatedAt: json['reply_to_message_created_at'] == null
+          ? null
+          : DateTime.parse(json['reply_to_message_created_at'] as String),
+      imageFileId: json['image_file_storage_key'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$MessageToJson(this);
+}
+
+
+// ===== FILE: ./lib/features/chat/domain/update_message_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/domain/fetch_messages_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/domain/send_message_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/presentation/thread_screen.dart =====
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/chat/thread_message_controller.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/widgets/message_tile.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/widgets/message_input.dart';
+
+class ThreadScreen extends StatelessWidget {
+  final String parentMessageId;
+  final String workRoomId;
+  final Map<String, String> participantsMap;
+
+  const ThreadScreen({
+    Key? key,
+    required this.parentMessageId,
+    required this.workRoomId,
+    required this.participantsMap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final ThreadMessageController threadMessageController = Get.find<ThreadMessageController>();
+
+    // Load thread messages and parent message when the screen opens
+    threadMessageController.loadThreadMessages(parentMessageId);
+
+    return Column(
+      children: [
+        // Header
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              "Thread",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const Divider(),
+        // Parent message display
+        Obx(() {
+          final parentMessage = threadMessageController.parentMessage.value;
+
+          if (threadMessageController.isLoading.value && parentMessage == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (parentMessage == null) {
+            return const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text("Failed to load parent message."),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MessageTile(
+                message: parentMessage,
+                participantsMap: participantsMap,
+              ),
+              const Divider(),
+            ],
+          );
+        }),
+        // Thread messages display
+        Expanded(
+          child: Obx(() {
+            final threadMessages = threadMessageController.threadMessages;
+
+            if (threadMessageController.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (threadMessages.isEmpty) {
+              return const Center(child: Text("No replies yet."));
+            }
+
+            return ListView.builder(
+              itemCount: threadMessages.length,
+              itemBuilder: (context, index) {
+                final message = threadMessages[index];
+                return MessageTile(
+                  message: message,
+                  participantsMap: participantsMap,
+                );
+              },
+            );
+          }),
+        ),
+        // Input field to reply to thread
+        MessageInput(
+          workRoomId: workRoomId,
+          parentMessageId: parentMessageId,
+          onSend: ({
+            required String workRoomId,
+            required String senderId,
+            required String content,
+            String? parentMessageId,
+            List<File>? attachments,
+          }) async {
+            if (attachments != null && attachments.isNotEmpty) {
+              // Handle attachments logic for threads
+              for (final file in attachments) {
+                // Upload logic here
+              }
+            }
+            await threadMessageController.sendThreadMessage(
+              workRoomId: workRoomId,
+              senderId: senderId,
+              content: content,
+              parentMessageId: parentMessageId!,
+            );
+          },
+        ),
+
+      ],
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/thread_list_screen.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/chat/thread_controller.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/thread_screen.dart';
+
+class ThreadListScreen extends StatelessWidget {
+  final String workRoomId;
+  final Map<String, String> participantsMap;
+
+  const ThreadListScreen({
+    Key? key,
+    required this.workRoomId,
+    required this.participantsMap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final ThreadController threadController = Get.find<ThreadController>();
+
+    // Load threads when the screen opens
+    threadController.loadThreads(workRoomId);
+
+    return Column(
+      children: [
+        // Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const Text(
+              "Threads",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 48), // To balance the close button's space
+          ],
+        ),
+        Expanded(
+          child: Obx(() {
+            final threads = threadController.threads;
+
+            if (threads.isEmpty) {
+              return const Center(child: Text("No threads available."));
+            }
+
+            return ListView.builder(
+              itemCount: threads.length,
+              itemBuilder: (context, index) {
+                final thread = threads[index];
+
+                return ListTile(
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        thread.threadContent,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16, // Emphasize the thread content
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (thread.latestReplyContent != null) // Show the latest reply if available
+                        Text(
+                          "Latest: ${thread.latestReplyContent}",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    "By: ${participantsMap[thread.latestReplySenderId] ?? 'Unknown'} • ${_formatTimestamp(thread.latestReplyUpdatedAt)}",
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  onTap: () {
+                    // Open thread screen
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      builder: (context) => Container(
+                        height: MediaQuery.of(context).size.height - 40,
+                        child: ThreadScreen(
+                          parentMessageId: thread.parentMessageId, // Pass the parent message ID
+                          workRoomId: workRoomId,
+                          participantsMap: participantsMap,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  String _formatTimestamp(DateTime? timestamp) {
+    if (timestamp == null) return "Unknown time";
+    return "${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')} • ${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/chat_screen.dart =====
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/constants.dart';
+import 'package:legalfactfinder2025/features/chat/message_controller.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/thread_screen.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/widgets/message_bubble.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/widgets/message_input.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+
+class ChatScreen extends StatefulWidget {
+  final WorkRoom workRoom;
+  final String myUserId;
+  const ChatScreen({Key? key, required this.workRoom, required this.myUserId}) : super(key: key);
+
+  @override
+  _ChatScreenState createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final MessageController _chatController = Get.find<MessageController>();
+  final ScrollController _scrollController = ScrollController();
+  String? _selectedMessageId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load messages for the workRoom when the screen initializes
+    _chatController.loadMessages(widget.workRoom.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Create a map of participants (senderId to username)
+    final participantsMap = {
+      for (var participant in widget.workRoom.participants)
+        participant.userId: participant.username
+    };
+
+    return Obx(() {
+      if (_chatController.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final messages = _chatController.messages;
+
+      return Column(
+        children: [
+          // Chat messages display
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              reverse: true,
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                  child: MessageBubble(
+                    myUserId: widget.myUserId,
+                    message: message,
+                    participantsMap: participantsMap,
+                    isSelected: _selectedMessageId == message.id,
+                    onSelected: (selectedMessageId) {
+                      setState(() {
+                        _selectedMessageId =
+                        _selectedMessageId == selectedMessageId ? null : selectedMessageId;
+
+                        if (_selectedMessageId != null) {
+                          final selectedIndex = messages.indexWhere((msg) => msg.id == _selectedMessageId);
+                          if (selectedIndex != -1) {
+                            _scrollToMessage(selectedIndex);
+                          }
+                        }
+                      });
+                    },
+                    onThread: (threadMessage) {
+                      // Show thread for the selected message
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        builder: (context) => Container(
+                          height: MediaQuery.of(context).size.height - 40,
+                          child: ThreadScreen(parentMessageId: threadMessage.id, participantsMap: participantsMap, workRoomId: threadMessage.workRoomId,),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          // Input field for sending messages
+          MessageInput(
+            workRoomId: widget.workRoom.id,
+            onSend: ({
+              required String workRoomId,
+              required String senderId,
+              required String content,
+              String? parentMessageId,
+              List<File>? attachments,
+            }) async {
+              if (attachments != null && attachments.isNotEmpty) {
+                // Handle attachments logic
+                for (final file in attachments) {
+                  // Upload logic here
+                }
+              }
+              await _chatController.sendMessage(
+                workRoomId: workRoomId,
+                senderId: senderId,
+                content: content,
+              );
+            },
+          ),
+
+        ],
+      );
+    });
+  }
+
+  void _scrollToMessage(int index) {
+    final double position = index * 100.0; // Approximate height of each item
+    _scrollController.animateTo(
+      position,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/chat_list.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/presentation/widgets/chat_header.dart =====
+
+
+
+// ===== FILE: ./lib/features/chat/presentation/widgets/message_tile.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+
+class MessageTile extends StatelessWidget {
+  final Message message;
+  final Map<String, String> participantsMap; // Map of senderId to username
+
+  const MessageTile({
+    Key? key,
+    required this.message,
+    required this.participantsMap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Get the sender's username from the participants map
+    final username = participantsMap[message.senderId] ?? "Unknown User";
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.grey[300],
+        child: Text(
+          username.isNotEmpty ? username[0].toUpperCase() : "?",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      title: Text(
+        username,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message.content,
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatTimestamp(message.createdAt),
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    // Format the timestamp into a readable format
+    return "${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')} • ${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/widgets/message_bubble.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/constants.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/thread_screen.dart';
+
+class MessageBubble extends StatelessWidget {
+  final String myUserId;
+  final Message message;
+  final Map<String, String> participantsMap;
+  final bool isSelected;
+  final void Function(String)? onSelected;
+  final void Function(Message)? onThread;
+  final void Function(Message)? onReply;
+  final void Function(Message)? onEdit;
+  final void Function(Message)? onDelete;
+  final void Function(Message)? onMarkImportant;
+
+
+  const MessageBubble({
+    Key? key,
+    required this.myUserId,
+    required this.message,
+    required this.participantsMap,
+    required this.isSelected,
+    this.onSelected,
+    this.onThread,
+    this.onReply,
+    this.onEdit,
+    this.onDelete,
+    this.onMarkImportant,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrentUser = message.senderId == myUserId;
+    final alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
+    final bubbleColor = isSelected
+        ? (isCurrentUser ? Colors.blue.shade300 : Colors.grey.shade400)
+        : (isCurrentUser ? Colors.blue : Colors.grey[300]);
+    final textColor = isCurrentUser ? Colors.white : Colors.black;
+    final username = participantsMap[message.senderId] ?? "Unknown";
+    final time =
+        "${message.createdAt.hour.toString().padLeft(2, '0')}:${message.createdAt.minute.toString().padLeft(2, '0')}";
+    bool isImage = message.attachmentFileType?.startsWith('image') ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+
+      children: [
+        if (isImage)
+          Image.network(message.attachmentFileStorageKey!, width: 200, height: 200, fit: BoxFit.cover)
+        else
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            if (!isCurrentUser)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: NetworkImage(
+                    "https://via.placeholder.com/150",
+                  ),
+                  backgroundColor: Colors.grey[300],
+                ),
+              ),
+            Column(
+              crossAxisAlignment:
+              isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isCurrentUser)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      username,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                GestureDetector(
+                  onTap: () => _showBottomSheet(context),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.8,
+                    ),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: bubbleColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          message.content,
+                          style: TextStyle(color: textColor),
+                          softWrap: true,
+                        ),
+                        if (message.threadCount > 0) // Display thread count if greater than 0
+                          GestureDetector(
+                            onTap: () => _showThreadBottomSheet(context), // Open thread screen
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                "Thread: ${message.threadCount}",
+                                style: TextStyle(
+                                  color: isCurrentUser ? Colors.white70 : Colors.blueAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    time,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildActionButton(
+                context: context,
+                icon: Icons.comment,
+                label: "Thread",
+                onTap: () {
+                  Navigator.pop(context);
+                  _showThreadBottomSheet(context);
+                },
+              ),
+              _buildActionButton(
+                context: context,
+                icon: Icons.reply,
+                label: "Reply",
+                onTap: () {
+                  Navigator.pop(context);
+                  if (onReply != null) onReply!(message);
+                },
+              ),
+              _buildActionButton(
+                context: context,
+                icon: Icons.edit,
+                label: "Edit",
+                onTap: () {
+                  Navigator.pop(context);
+                  if (onEdit != null) onEdit!(message);
+                },
+              ),
+              _buildActionButton(
+                context: context,
+                icon: Icons.delete,
+                label: "Delete",
+                onTap: () {
+                  Navigator.pop(context);
+                  if (onDelete != null) onDelete!(message);
+                },
+              ),
+              _buildActionButton(
+                context: context,
+                icon: Icons.star,
+                label: "Mark Important",
+                onTap: () {
+                  Navigator.pop(context);
+                  if (onMarkImportant != null) onMarkImportant!(message);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showThreadBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height - 40,
+          child: ThreadScreen(
+            parentMessageId: message.id,
+            workRoomId: message.workRoomId,
+            participantsMap: participantsMap,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.grey[700]),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 16, color: Colors.black),
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/widgets/message_popup_menu.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+
+class MessagePopupMenu extends StatelessWidget {
+  final bool isCurrentUser;
+  final Message message;
+  final void Function(Message)? onThreadWrite;
+  final void Function(Message)? onReply;
+  final void Function(Message)? onEdit;
+  final void Function(Message)? onDelete;
+  final void Function(Message)? onMarkImportant;
+
+  const MessagePopupMenu({
+    Key? key,
+    required this.isCurrentUser,
+    required this.message,
+    this.onThreadWrite,
+    this.onReply,
+    this.onEdit,
+    this.onDelete,
+    this.onMarkImportant,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      right: isCurrentUser ? -60 : null,
+      left: isCurrentUser ? null : -60,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildCompactIcon(
+                icon: Icons.comment,
+                onTap: () {
+                  if (onThreadWrite != null) onThreadWrite!(message);
+                },
+              ),
+              _buildCompactIcon(
+                icon: Icons.reply,
+                onTap: () {
+                  if (onReply != null) onReply!(message);
+                },
+              ),
+              _buildCompactIcon(
+                icon: Icons.edit,
+                onTap: () {
+                  if (onEdit != null) onEdit!(message);
+                },
+              ),
+              _buildCompactIcon(
+                icon: Icons.delete,
+                onTap: () {
+                  if (onDelete != null) onDelete!(message);
+                },
+              ),
+              _buildCompactIcon(
+                icon: Icons.star,
+                onTap: () {
+                  if (onMarkImportant != null) onMarkImportant!(message);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactIcon({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Icon(
+          icon,
+          size: 14,
+          color: Colors.grey[700],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/chat/presentation/widgets/message_input.dart =====
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class MessageInput extends StatefulWidget {
+  final String workRoomId;
+  final String? parentMessageId; // Optional for threads
+  final Future<void> Function({
+  required String workRoomId,
+  required String senderId,
+  required String content,
+  String? parentMessageId,
+  List<File>? attachments,
+  }) onSend;
+
+  const MessageInput({
+    Key? key,
+    required this.workRoomId,
+    this.parentMessageId,
+    required this.onSend,
+  }) : super(key: key);
+
+  @override
+  _MessageInputState createState() => _MessageInputState();
+}
+
+class _MessageInputState extends State<MessageInput> {
+  final TextEditingController _controller = TextEditingController();
+  List<File> _selectedFiles = [];
+  bool _isUploading = false;
+
+  /// Selects files for upload
+  Future<void> _pickFiles() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+      dialogTitle: "파일을 선택하세요",
+
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedFiles.addAll(result.files.map((file) => File(file.path!)));
+      });
+    } else{
+      // ✅ 파일 선택을 취소한 경우 SafeArea 다시 적용
+
+      setState(() {
+
+      });
+    }
+
+  }
+
+
+
+  /// Removes a file from the selection
+  void _removeFile(int index) {
+    setState(() {
+      _selectedFiles.removeAt(index);
+    });
+  }
+
+  /// Sends the message with optional attachments
+  Future<void> _sendMessage() async {
+    if (_controller.text.isEmpty && _selectedFiles.isEmpty) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+
+      AuthController authController = Get.find<AuthController>();
+      String? myUserId = authController.getUserId();
+      if (myUserId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User ID is null")),
+        );
+        Get.toNamed('/login');
+        return;
+      }
+
+
+      await widget.onSend(
+        workRoomId: widget.workRoomId,
+        senderId: myUserId, // Replace with the current user's ID
+        content: _controller.text.trim(),
+        parentMessageId: widget.parentMessageId,
+        attachments: _selectedFiles,
+      );
+
+      _controller.clear();
+      setState(() {
+        _selectedFiles.clear();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to send message: $e")),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: Column(
+          children: [
+            if (_selectedFiles.isNotEmpty)
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedFiles.length,
+                  itemBuilder: (context, index) {
+                    final file = _selectedFiles[index];
+                    final fileName = file.path.split('/').last;
+      
+                    return Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            color: Colors.grey.shade300,
+                            child: Center(
+                              child: Text(
+                                fileName.length > 10
+                                    ? "${fileName.substring(0, 10)}..."
+                                    : fileName,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: GestureDetector(
+                            onTap: () => _removeFile(index),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.red,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.attach_file, color: Colors.grey),
+                  onPressed: _pickFiles,
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: "Type your message...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.blue.shade300),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ),
+                _isUploading
+                    ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : IconButton(
+                  icon: const Icon(Icons.send, color: Colors.blue),
+                  onPressed: _sendMessage,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -19,8 +19,12 @@ import 'package:legalfactfinder2025/features/files/file_view_controller.dart';
 import 'package:legalfactfinder2025/features/friend/friend_list_controller.dart';
 import 'package:legalfactfinder2025/features/notification/data/notification_repository.dart';
 import 'package:legalfactfinder2025/features/notification/presentation/notification_list_controller.dart';
+import 'package:legalfactfinder2025/features/users/data/users_repository.dart';
+import 'package:legalfactfinder2025/features/users/users_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_latest_messages_repository.dart';
 import 'package:legalfactfinder2025/features/work_room/data/work_room_repository.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_latest_messages_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:opencv_dart/opencv_dart.dart' as cv4;
@@ -31,31 +35,45 @@ Future<void> initSupabase() async {
     anonKey: anonKey, // constants.dart에서 가져온 anonKey
   );
 }
+
 late String initialRoute;
 
 void main() async {
-
   WidgetsFlutterBinding.ensureInitialized(); // Flutter framework 초기화
-  print("OpenCV version: ${  cv4.openCvVersion()}");
+  print("OpenCV version: ${cv4.openCvVersion()}");
 
   await initSupabase(); // Supabase 초기화
 
+
+  Get.put(UsersController(
+    UsersRepository(
+      getUsersByIdsUrl: getUsersByIdsUrl,
+      jwtToken: jwtToken,
+    ),
+  ));
+
+
+  Get.put(WorkRoomLatestMessagesController(
+    WorkRoomLatestMessagesRepository(
+      getWorkRoomLatestMessagesUrl: getWorkRoomLatestMessagesUrl,
+      jwtToken: jwtToken,
+    ),
+  ));
 
   final authRepository = AuthRepository(Supabase.instance.client);
   final authController = AuthController(authRepository);
   Get.put(authController);
 
-
   final annotationController = AnnotationController();
   Get.put(annotationController);
-
 
   // NotificationRepository 및 Controller 초기화
   final notificationRepository = NotificationRepository(
     getUserNotificationsUrl: getUserNotificationsEdgeFunctionUrl,
     jwtToken: jwtToken,
   );
-  Get.put(NotificationListController(notificationRepository: notificationRepository));
+  Get.put(NotificationListController(
+      notificationRepository: notificationRepository));
 
   // WorkRoomRepository 및 Controller 초기화
   final workRoomRepository = WorkRoomRepository();
@@ -87,13 +105,11 @@ void main() async {
     putThreadMessageEdgeFunctionUrl: putThreadChatMessageEdgeFunctionUrl,
     jwtToken: jwtToken,
   );
-  Get.put(ThreadMessageController(threadMessageRepository)); // Register ThreadMessageController
+  Get.put(ThreadMessageController(
+      threadMessageRepository)); // Register ThreadMessageController
 
   // FileViewController 등록
   Get.put(FileViewController(FileRepository()));
-
-
-
 
   // ✅ 초기 경로 결정: 로그인 여부 & 이메일 인증 상태 확인
   if (authController.currentUser.value == null) {
@@ -125,8 +141,10 @@ class MyApp extends StatelessWidget {
       title: 'Legal FactFinder',
       theme: AppTheme.themeData,
       // home: MainLayout(), // BottomNavigationBar를 포함한 메인 화면
-      initialRoute: initialRoute, // 로그인 화면을 기본 화면으로 설정
-      getPages: AppRoutes.routes, // AppRoutes의 라우트 리스트 연결
+      initialRoute: initialRoute,
+      // 로그인 화면을 기본 화면으로 설정
+      getPages: AppRoutes.routes,
+      // AppRoutes의 라우트 리스트 연결
       unknownRoute: GetPage(
         name: '/not_found',
         page: () => Scaffold(

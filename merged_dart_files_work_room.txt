@@ -1,0 +1,2157 @@
+
+// ===== FILE: ./lib/features/work_room/work_room_list_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_repository.dart';
+
+class WorkRoomListController extends GetxController {
+  final WorkRoomRepository repository = WorkRoomRepository();
+
+  RxList<WorkRoom> workRooms = <WorkRoom>[].obs;
+  RxBool isLoading = false.obs;
+  RxString errorMessage = ''.obs;
+
+  /// 특정 사용자의 WorkRoom 목록을 가져오는 함수
+  Future<void> fetchWorkRooms() async {
+    AuthController authController= Get.find<AuthController>();
+    String? userId = authController.getUserId();
+
+    if(userId == null){
+      print("User ID is null");
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      // Fetch work rooms from the repository
+      final fetchedWorkRooms = await repository.getWorkRoomsByUserId(userId);
+
+      // Check if the fetched work rooms are null and handle it
+      if (fetchedWorkRooms == null) {
+        errorMessage.value = "No work rooms found for this user.";
+      } else {
+        workRooms.assignAll(fetchedWorkRooms);
+      }
+    } catch (e) {
+      errorMessage.value = "Failed to load Work Rooms: $e";
+    } finally {
+      isLoading.value = false;
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/work_room_request_controller.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_request_repository.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_request_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class WorkRoomRequestController extends GetxController {
+  final WorkRoomRequestRepository repository = WorkRoomRequestRepository(Supabase.instance.client);
+
+  var isLoading = false.obs;
+  var successMessage = ''.obs;
+  var errorMessage = ''.obs;
+  var receivedRequests = <WorkRoomRequest>[].obs;
+  var sentRequests = <WorkRoomRequest>[].obs;
+
+  // ✅ WorkRoom 초대 요청 보내기
+  Future<void> sendWorkRoomRequest(String requesterId, String recipientEmail, String workRoomId) async {
+    try {
+      final startTime = DateTime.now();
+      debugPrint("🔄 [WorkRoomRequestController] Sending WorkRoom request from '$requesterId' to '$recipientEmail' for WorkRoom '$workRoomId' at $startTime");
+
+      isLoading(true);
+      successMessage('');
+      errorMessage('');
+
+      debugPrint("⏳ [WorkRoomRequestController] Calling repository.sendWorkRoomRequest...");
+      final success = await repository.sendWorkRoomRequest(requesterId, recipientEmail, workRoomId);
+
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+      debugPrint("✅ [WorkRoomRequestController] API call completed in \${duration.inMilliseconds}ms");
+
+      if (success) {
+        successMessage('WorkRoom request sent successfully.');
+        debugPrint("📨 [WorkRoomRequestController] WorkRoom request successfully sent to $recipientEmail");
+
+        fetchSentRequests(requesterId); // ✅ 보낸 요청 즉시 갱신
+      } else {
+        errorMessage('Failed to send WorkRoom request. User may not exist.');
+        debugPrint("❌ [WorkRoomRequestController] WorkRoom request failed: User not found or another issue.");
+      }
+    } catch (e, stacktrace) {
+      errorMessage('Error sending WorkRoom request.');
+      debugPrint("❌ [WorkRoomRequestController] Exception occurred while sending WorkRoom request: $e");
+      debugPrint("🔍 [WorkRoomRequestController] Stacktrace: $stacktrace");
+    } finally {
+      isLoading(false);
+      debugPrint("🔄 [WorkRoomRequestController] Finished processing WorkRoom request.");
+    }
+  }
+
+  // ✅ 받은 WorkRoom 초대 목록 불러오기
+  Future<void> fetchReceivedRequests(String userId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRequestController] Fetching received work room requests for user: $userId");
+
+      isLoading(true);
+      errorMessage('');
+
+      List<WorkRoomRequest> requests = await repository.getReceivedRequests(userId);
+      receivedRequests.assignAll(requests);
+
+      debugPrint("✅ [WorkRoomRequestController] Successfully fetched received work room requests.");
+    } catch (e, stacktrace) {
+      errorMessage('❌ Error fetching received work room requests');
+      debugPrint("❌ Exception: $e");
+      debugPrint("🔍 Stacktrace: $stacktrace");
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  // ✅ 보낸 WorkRoom 초대 목록 불러오기
+  Future<void> fetchSentRequests(String userId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRequestController] Fetching sent work room requests for user: $userId");
+
+      isLoading(true);
+      errorMessage('');
+
+      List<WorkRoomRequest> requests = await repository.getSentRequests(userId);
+      sentRequests.assignAll(requests);
+
+      debugPrint("✅ [WorkRoomRequestController] Successfully fetched sent work room requests.");
+    } catch (e, stacktrace) {
+      errorMessage('❌ Error fetching sent work room requests');
+      debugPrint("❌ Exception: $e");
+      debugPrint("🔍 Stacktrace: $stacktrace");
+    } finally {
+      isLoading(false);
+    }
+  }
+  // ✅ WorkRoom 초대 수락/거절
+  Future<void> handleWorkRoomRequest(String requestId,  String action) async {
+    try {
+      isLoading(true);
+      successMessage('');
+      errorMessage('');
+
+      debugPrint("⏳ [WorkRoomRequestController] Processing WorkRoom request: \$requestId with action: \$action");
+      final success = await repository.answerWorkRoomRequest(requestId,  action);
+
+      if (success) {
+        successMessage('WorkRoom request \$action successfully.');
+        debugPrint("✅ [WorkRoomRequestController] WorkRoom request \$action successfully.");
+      } else {
+        errorMessage('Failed to process WorkRoom request.');
+        debugPrint("❌ [WorkRoomRequestController] WorkRoom request processing failed.");
+      }
+    } catch (e, stacktrace) {
+      errorMessage('Error processing WorkRoom request.');
+      debugPrint("❌ [WorkRoomRequestController] Exception: \$e");
+      debugPrint("🔍 [WorkRoomRequestController] Stacktrace: \$stacktrace");
+    } finally {
+      isLoading(false);
+      debugPrint("🔄 [WorkRoomRequestController] Finished processing WorkRoom request.");
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/work_room_details_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_details_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_details_repository.dart';
+
+class WorkRoomDetailsController extends GetxController {
+
+  final WorkRoomDetailsRepository workRoomDetailsRepository = WorkRoomDetailsRepository();
+
+  Rx<WorkRoomDetails?> workRoomDetails = Rx<WorkRoomDetails?>(null);
+
+  // 상태 변수
+  var workRoom = Rxn<WorkRoom>(); // Rxn: null을 허용하는 반응형 변수
+  var isLoading = false.obs; // 로딩 상태
+  var errorMessage = ''.obs; // 에러 메시지
+  var successMessage = ''.obs; // 성공 메시지
+
+
+  Future<void> fetchWorkRoomDetails(String workRoomId) async {
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+
+      final details = await workRoomDetailsRepository.getWorkRoomDetails(workRoomId);
+      workRoomDetails.value = details;
+    } catch (e) {
+      errorMessage.value = "Failed to load WorkRoom details: $e";
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+
+}
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_request_model.dart =====
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'work_room_request_model.g.dart';
+
+@JsonSerializable()
+class WorkRoomRequest {
+  final String id;
+  final String requesterId;
+  final String? recipientId;
+  final String workRoomId;
+  final String? recipientEmail;
+  final String status;
+  final DateTime sentAt;
+  final DateTime? respondedAt;
+
+  WorkRoomRequest({
+    required this.id,
+    required this.requesterId,
+    this.recipientId,
+    required this.workRoomId,
+    this.recipientEmail,
+    required this.status,
+    required this.sentAt,
+    this.respondedAt,
+  });
+
+  factory WorkRoomRequest.fromJson(Map<String, dynamic> json) {
+    return WorkRoomRequest(
+      id: json['id'] as String? ?? '',
+      requesterId: json['requester_id'] as String? ?? '',
+      recipientId: json['recipient_id'] as String?,
+      workRoomId: json['work_room_id'] as String? ?? '',
+      recipientEmail: json['recipient_email'] as String?,
+      status: json['status'] as String? ?? 'pending',
+      sentAt: DateTime.tryParse(json['sent_at'] as String? ?? '') ?? DateTime.now(),
+      respondedAt: json['responded_at'] != null ? DateTime.tryParse(json['responded_at'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomRequestToJson(this);
+}
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_details_model.dart =====
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'work_room_details_model.g.dart';
+
+@JsonSerializable()
+class WorkRoom {
+  final String id;
+  final String title; // 수정: name -> title
+  final String description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  WorkRoom({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory WorkRoom.fromJson(Map<String, dynamic> json) {
+    return WorkRoom(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '', // 수정된 컬럼명 반영
+      description: json['description'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomToJson(this);
+}
+
+@JsonSerializable()
+class WorkRoomParticipant {
+  final String id;
+  final String workRoomId; // 수정: work_room_id 추가
+  final String userId;
+  final bool isAdmin;
+  final DateTime joinedAt;
+  final DateTime lastSeen;
+
+  WorkRoomParticipant({
+    required this.id,
+    required this.workRoomId, // 추가된 필드
+    required this.userId,
+    required this.isAdmin,
+    required this.joinedAt,
+    required this.lastSeen,
+  });
+
+  factory WorkRoomParticipant.fromJson(Map<String, dynamic> json) {
+    return WorkRoomParticipant(
+      id: json['id'] as String? ?? '',
+      workRoomId: json['work_room_id'] as String? ?? '', // 추가
+      userId: json['user_id'] as String? ?? '',
+      isAdmin: json['is_admin'] as bool? ?? false,
+      joinedAt: DateTime.tryParse(json['joined_at'] as String? ?? '') ?? DateTime.now(),
+      lastSeen: DateTime.tryParse(json['last_seen'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomParticipantToJson(this);
+}
+
+@JsonSerializable()
+class WorkRoomParty {
+  final String id;
+  final String workRoomId;
+  final String name;
+  final String role;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  WorkRoomParty({
+    required this.id,
+    required this.workRoomId,
+    required this.name,
+    required this.role,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory WorkRoomParty.fromJson(Map<String, dynamic> json) {
+    return WorkRoomParty(
+      id: json['id'] as String? ?? '',
+      workRoomId: json['work_room_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      role: json['role'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomPartyToJson(this);
+}
+
+@JsonSerializable()
+class WorkRoomDetails {
+  final WorkRoom workRoom;
+  final List<WorkRoomParticipant> participants;
+  final List<WorkRoomParty> parties;
+
+  WorkRoomDetails({
+    required this.workRoom,
+    required this.participants,
+    required this.parties,
+  });
+
+  factory WorkRoomDetails.fromJson(Map<String, dynamic> json) {
+    return WorkRoomDetails(
+      workRoom: WorkRoom.fromJson(json['work_room'] as Map<String, dynamic>? ?? {}),
+      participants: (json['participants'] as List<dynamic>?)
+          ?.map((participant) => WorkRoomParticipant.fromJson(participant))
+          .toList() ??
+          [],
+      parties: (json['parties'] as List<dynamic>?)
+          ?.map((party) => WorkRoomParty.fromJson(party))
+          .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomDetailsToJson(this);
+}
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_model.g.dart =====
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'work_room_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+WorkRoom _$WorkRoomFromJson(Map<String, dynamic> json) => WorkRoom(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      participants: (json['participants'] as List<dynamic>)
+          .map((e) => Participant.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$WorkRoomToJson(WorkRoom instance) => <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'description': instance.description,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+      'participants': instance.participants,
+    };
+
+Participant _$ParticipantFromJson(Map<String, dynamic> json) => Participant(
+      userId: json['userId'] as String,
+      isAdmin: json['isAdmin'] as bool,
+      username: json['username'] as String,
+      profilePictureUrl: json['profilePictureUrl'] as String,
+      isLawyer: json['isLawyer'] as bool,
+    );
+
+Map<String, dynamic> _$ParticipantToJson(Participant instance) =>
+    <String, dynamic>{
+      'userId': instance.userId,
+      'isAdmin': instance.isAdmin,
+      'username': instance.username,
+      'profilePictureUrl': instance.profilePictureUrl,
+      'isLawyer': instance.isLawyer,
+    };
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_request_model.g.dart =====
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'work_room_request_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+WorkRoomRequest _$WorkRoomRequestFromJson(Map<String, dynamic> json) =>
+    WorkRoomRequest(
+      id: json['id'] as String,
+      requesterId: json['requesterId'] as String,
+      recipientId: json['recipientId'] as String?,
+      workRoomId: json['workRoomId'] as String,
+      recipientEmail: json['recipientEmail'] as String?,
+      status: json['status'] as String,
+      sentAt: DateTime.parse(json['sentAt'] as String),
+      respondedAt: json['respondedAt'] == null
+          ? null
+          : DateTime.parse(json['respondedAt'] as String),
+    );
+
+Map<String, dynamic> _$WorkRoomRequestToJson(WorkRoomRequest instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'requesterId': instance.requesterId,
+      'recipientId': instance.recipientId,
+      'workRoomId': instance.workRoomId,
+      'recipientEmail': instance.recipientEmail,
+      'status': instance.status,
+      'sentAt': instance.sentAt.toIso8601String(),
+      'respondedAt': instance.respondedAt?.toIso8601String(),
+    };
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_model.dart =====
+
+import 'package:json_annotation/json_annotation.dart';
+
+part 'work_room_model.g.dart';
+
+@JsonSerializable()
+class WorkRoom {
+  final String id; // "id" 컬럼
+  final String title; // "title" 컬럼
+  final String description; // "description" 컬럼
+  final DateTime createdAt; // "created_at" 컬럼
+  final DateTime updatedAt; // "updated_at" 컬럼
+  final List<Participant> participants;
+
+  WorkRoom({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.participants,
+  });
+
+  // Null-safe factory method for JSON deserialization
+  factory WorkRoom.fromJson(Map<String, dynamic> json) {
+    return WorkRoom(
+      id: json['work_room_id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(),
+      participants: (json['participants'] as List<dynamic>?)
+          ?.map((participantJson) => Participant.fromJson(participantJson))
+          .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$WorkRoomToJson(this);
+}
+
+@JsonSerializable()
+class Participant {
+  final String userId;
+  final bool isAdmin;
+  final String username;
+  final String profilePictureUrl;
+  final bool isLawyer;
+
+  Participant({
+    required this.userId,
+    required this.isAdmin,
+    required this.username,
+    required this.profilePictureUrl,
+    required this.isLawyer,
+  });
+
+  factory Participant.fromJson(Map<String, dynamic> json) {
+    return Participant(
+      userId: json['user_id'] as String? ?? '',
+      isAdmin: json['is_admin'] as bool? ?? false,
+
+      username: json['username'] as String? ?? '',
+      profilePictureUrl: json['profile_picture_url'] as String? ?? '',
+      isLawyer: json['is_lawyer'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => _$ParticipantToJson(this);
+}
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_details_model.g.dart =====
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'work_room_details_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+WorkRoom _$WorkRoomFromJson(Map<String, dynamic> json) => WorkRoom(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+
+Map<String, dynamic> _$WorkRoomToJson(WorkRoom instance) => <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'description': instance.description,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+    };
+
+WorkRoomParticipant _$WorkRoomParticipantFromJson(Map<String, dynamic> json) =>
+    WorkRoomParticipant(
+      id: json['id'] as String,
+      workRoomId: json['workRoomId'] as String,
+      userId: json['userId'] as String,
+      isAdmin: json['isAdmin'] as bool,
+      joinedAt: DateTime.parse(json['joinedAt'] as String),
+      lastSeen: DateTime.parse(json['lastSeen'] as String),
+    );
+
+Map<String, dynamic> _$WorkRoomParticipantToJson(
+        WorkRoomParticipant instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'workRoomId': instance.workRoomId,
+      'userId': instance.userId,
+      'isAdmin': instance.isAdmin,
+      'joinedAt': instance.joinedAt.toIso8601String(),
+      'lastSeen': instance.lastSeen.toIso8601String(),
+    };
+
+WorkRoomParty _$WorkRoomPartyFromJson(Map<String, dynamic> json) =>
+    WorkRoomParty(
+      id: json['id'] as String,
+      workRoomId: json['workRoomId'] as String,
+      name: json['name'] as String,
+      role: json['role'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+
+Map<String, dynamic> _$WorkRoomPartyToJson(WorkRoomParty instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'workRoomId': instance.workRoomId,
+      'name': instance.name,
+      'role': instance.role,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+    };
+
+WorkRoomDetails _$WorkRoomDetailsFromJson(Map<String, dynamic> json) =>
+    WorkRoomDetails(
+      workRoom: WorkRoom.fromJson(json['workRoom'] as Map<String, dynamic>),
+      participants: (json['participants'] as List<dynamic>)
+          .map((e) => WorkRoomParticipant.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      parties: (json['parties'] as List<dynamic>)
+          .map((e) => WorkRoomParty.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$WorkRoomDetailsToJson(WorkRoomDetails instance) =>
+    <String, dynamic>{
+      'workRoom': instance.workRoom,
+      'participants': instance.participants,
+      'parties': instance.parties,
+    };
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_details_repository.dart =====
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:legalfactfinder2025/constants.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_details_model.dart';
+
+class WorkRoomDetailsRepository {
+  Future<WorkRoomDetails> getWorkRoomDetails(String workRoomId) async {
+    final url = Uri.parse('$baseUrl/functions/v1/get_work_room_details_json');
+
+    print("🔵 [REQUEST] Fetching WorkRoom details for ID: $workRoomId from $url");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({'work_room_id': workRoomId}),
+      );
+
+      print("🟢 [RESPONSE] Status Code: ${response.statusCode}");
+      print("🟢 Raw Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decodedResponse = utf8.decode(response.bodyBytes);
+        final responseData = jsonDecode(decodedResponse);
+
+        print("🔹 Parsed JSON: $responseData");
+
+        if (responseData is! Map<String, dynamic> || !responseData.containsKey('work_room_details')) {
+          throw Exception("Unexpected response format: Missing 'work_room_details' key.");
+        }
+
+        final workRoomDetails = WorkRoomDetails.fromJson(responseData['work_room_details']);
+
+        print("✅ Successfully fetched WorkRoom details!");
+        return workRoomDetails;
+      } else {
+        print("❌ [ERROR] Failed to fetch WorkRoom details: ${response.body}");
+        throw Exception("Failed to fetch WorkRoom details: ${response.body}");
+      }
+    } catch (e, stackTrace) {
+      print("🚨 [EXCEPTION] Error fetching WorkRoom details");
+      print("🔴 Exception: $e");
+      print("🔴 Stack Trace: $stackTrace");
+      throw Exception("An unexpected error occurred: $e");
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/data/work_room_request_repository.dart =====
+
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_request_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class WorkRoomRequestRepository {
+  final SupabaseClient supabase;
+
+  WorkRoomRequestRepository(this.supabase);
+
+  // ✅ Supabase Edge Function `put_work_room_request` 호출하여 WorkRoom 요청 처리
+  Future<bool> sendWorkRoomRequest(String requesterId, String recipientEmail, String workRoomId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRequestRepository] Sending WorkRoom request from '$requesterId' to '$recipientEmail' for WorkRoom '$workRoomId'");
+
+      final startTime = DateTime.now();
+      debugPrint("⏳ [WorkRoomRequestRepository] Invoking Supabase Edge Function...");
+
+      final responseEdge = await supabase.functions.invoke(
+        'put_work_room_request',
+        body: {
+          'requester_id': requesterId,
+          'recipient_email': recipientEmail,
+          'work_room_id': workRoomId,
+        },
+      );
+
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+      debugPrint("✅ [WorkRoomRequestRepository] Edge Function completed in \${duration.inMilliseconds}ms");
+
+      if (responseEdge.data == null) {
+        debugPrint("❌ [WorkRoomRequestRepository] No data received from Edge Function.");
+        return false;
+      }
+
+      debugPrint("✅ [WorkRoomRequestRepository] WorkRoom request successfully sent via Edge Function.");
+      return true;
+    } catch (e, stacktrace) {
+      debugPrint("❌ [WorkRoomRequestRepository] Error sending WorkRoom request: $e");
+      debugPrint("🔍 [WorkRoomRequestRepository] Stacktrace: $stacktrace");
+      return false;
+    }
+  }
+
+  // ✅ 받은 WorkRoom 초대 목록 불러오기
+  Future<List<WorkRoomRequest>> getReceivedRequests(String userId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRequestRepository] Fetching received work room requests for user: $userId");
+
+      final response = await supabase.functions.invoke(
+        'get_received_work_room_requests',
+        body: {'user_id': userId},
+      );
+
+      if (response.data == null) {
+        debugPrint("❌ [WorkRoomRequestRepository] No data received.");
+        return [];
+      }
+
+      List<dynamic> responseData;
+      if (response.data is String) {
+        responseData = jsonDecode(response.data);
+      } else if (response.data is List) {
+        responseData = response.data;
+      } else {
+        throw Exception("Unexpected response format: \${response.data}");
+      }
+
+      debugPrint("✅ [WorkRoomRequestRepository] Successfully fetched received work room requests.");
+      return responseData.map((e) => WorkRoomRequest.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint("❌ [WorkRoomRequestRepository] Error fetching received requests: $e");
+      return [];
+    }
+  }
+
+  // ✅ 보낸 WorkRoom 초대 목록 불러오기
+  Future<List<WorkRoomRequest>> getSentRequests(String userId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRequestRepository] Fetching sent work room requests for user: $userId");
+
+      final response = await supabase.functions.invoke(
+        'get_sent_work_room_requests',
+        body: {'user_id': userId},
+      );
+
+      if (response.data == null) {
+        debugPrint("❌ [WorkRoomRequestRepository] No data received.");
+        return [];
+      }
+
+      List<dynamic> responseData;
+      if (response.data is String) {
+        responseData = jsonDecode(response.data);
+      } else if (response.data is List) {
+        responseData = response.data;
+      } else {
+        throw Exception("Unexpected response format: \${response.data}");
+      }
+
+      debugPrint("✅ [WorkRoomRequestRepository] Successfully fetched sent work room requests.");
+      return responseData.map((e) => WorkRoomRequest.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint("❌ [WorkRoomRequestRepository] Error fetching sent requests: $e");
+      return [];
+    }
+  }
+
+  // ✅ WorkRoom 초대 수락/거절 처리
+  Future<bool> answerWorkRoomRequest(String requestId,  String action) async {
+    AuthController authController = Get.find<AuthController>();
+    String? myUserId = authController.getUserId();
+
+    if(myUserId==null){
+        throw Exception("User ID is null. Cannot proceed with answering WorkRoom request.");
+    }
+    try {
+      debugPrint("🔄 [WorkRoomRequestRepository] Answering WorkRoom request: \$requestId with action: \$action");
+
+      final responseEdge = await supabase.functions.invoke(
+        'answer_work_room_request',
+        body: {
+          'request_id': requestId,
+          'recipient_id': myUserId,
+          'action': action,
+        },
+      );
+
+      if (responseEdge.data == null) {
+        debugPrint("❌ [WorkRoomRequestRepository] No data received from Edge Function.");
+        return false;
+      }
+
+      debugPrint("✅ [WorkRoomRequestRepository] WorkRoom request successfully answered.");
+      return true;
+    } catch (e, stacktrace) {
+      debugPrint("❌ [WorkRoomRequestRepository] Error answering WorkRoom request: \$e");
+      debugPrint("🔍 [WorkRoomRequestRepository] Stacktrace: \$stacktrace");
+      return false;
+    }
+  }
+}
+
+// ===== FILE: ./lib/features/work_room/data/work_room_repository.dart =====
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:legalfactfinder2025/constants.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+
+class WorkRoomRepository {
+
+  Future<List<WorkRoom>> getWorkRoomsByUserId(String userId) async {
+    final url = Uri.parse('$baseUrl/functions/v1/get_work_rooms_by_user_id');
+
+    print("🔵 [REQUEST] Fetching WorkRooms for userId: $userId from $url");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({'p_user_id': userId}),
+      );
+
+      print("🟢 [RESPONSE] Status Code: ${response.statusCode}");
+      print("🟢 Raw Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decodedResponse = utf8.decode(response.bodyBytes);
+        final responseData = jsonDecode(decodedResponse);
+
+        print("🔹 Parsed JSON: $responseData");
+
+        // Check if 'work_rooms' is null or absent
+        if (responseData is! Map<String, dynamic> || responseData['work_rooms'] == null) {
+          print("🔴 No work rooms found or 'work_rooms' key is null.");
+          return []; // Return an empty list if no work rooms are found
+        }
+
+        final workRooms = (responseData['work_rooms'] as List<dynamic>)
+            .map((json) => WorkRoom.fromJson(json))
+            .toList();
+
+        print("✅ Successfully fetched ${workRooms.length} WorkRooms!");
+        return workRooms;
+      } else {
+        print("❌ [ERROR] Failed to fetch WorkRooms: ${response.body}");
+        throw Exception("Failed to fetch WorkRooms: ${response.body}");
+      }
+    } catch (e, stackTrace) {
+      print("🚨 [EXCEPTION] Error fetching WorkRooms");
+      print("🔴 Exception: $e");
+      print("🔴 Stack Trace: $stackTrace");
+      throw Exception("An unexpected error occurred: $e");
+    }
+  }
+
+
+
+  Future<WorkRoom> getWorkRoomById(String workRoomId) async {
+    final url = Uri.parse('$baseUrl/functions/v1/get_work_room_with_participants_json');
+
+    print("🔵 [REQUEST] Fetching WorkRoom details for ID: $workRoomId from $url");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({'p_work_room_id': workRoomId}),
+      );
+
+      print("🟢 [RESPONSE] Status Code: ${response.statusCode}");
+      print("🟢 Raw Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decodedResponse = utf8.decode(response.bodyBytes);
+        final responseData = jsonDecode(decodedResponse);
+
+        print("🔹 Parsed JSON: $responseData");
+
+        // Check for `work_room_with_participants` key
+        if (responseData is! Map<String, dynamic> || !responseData.containsKey('work_room_with_participants')) {
+          throw Exception("Unexpected response format: Missing 'work_room_with_participants' key.");
+        }
+
+        final workRoomWithParticipants = responseData['work_room_with_participants'];
+
+        // Extract and parse `work_room`
+        if (!workRoomWithParticipants.containsKey('work_room')) {
+          throw Exception("Unexpected response format: Missing 'work_room' key.");
+        }
+
+        final workRoom = WorkRoom.fromJson(workRoomWithParticipants['work_room']);
+
+        print("✅ Successfully fetched WorkRoom details!");
+        return workRoom;
+      } else {
+        print("❌ [ERROR] Failed to fetch WorkRoom details: ${response.body}");
+        throw Exception("Failed to fetch WorkRoom details: ${response.body}");
+      }
+    } catch (e, stackTrace) {
+      print("🚨 [EXCEPTION] Error fetching WorkRoom details");
+      print("🔴 Exception: $e");
+      print("🔴 Stack Trace: $stackTrace");
+      throw Exception("An unexpected error occurred: $e");
+    }
+  }
+
+
+
+  // WorkRoom 생성
+  Future<void> createWorkRoom(String title, String description, String userId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/functions/v1/put_work_room'), // constants.dart에서 URL 사용
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $jwtToken', // constants.dart에서 JWT Token 사용
+      },
+      body: jsonEncode({
+        'title': title,
+        'description': description,
+        'user_id': userId,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create WorkRoom: ${response.body}');
+    }
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/domain/send_invitation_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/work_room/domain/accept_invitation_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/work_room/domain/fetch_work_rooms_usecase.dart =====
+
+
+
+// ===== FILE: ./lib/features/work_room/presentation/add_work_room_page.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
+
+class AddWorkRoomPage extends StatefulWidget {
+  const AddWorkRoomPage({super.key});
+
+  @override
+  _AddWorkRoomPageState createState() => _AddWorkRoomPageState();
+}
+
+class _AddWorkRoomPageState extends State<AddWorkRoomPage> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+
+  late AuthController authController;
+  late WorkRoomController workRoomController;
+  String? userId;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // GetX 컨트롤러 가져오기
+    authController = Get.find<AuthController>();
+    workRoomController = Get.find<WorkRoomController>();
+
+    // 로그인 상태 체크 후 userId 가져오기
+    userId = authController.getUserId();
+
+    // 로그인하지 않은 경우 로그인 페이지로 이동
+    if (userId == null) {
+      Future.delayed(Duration.zero, () => Get.offAllNamed('/login'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 로그인하지 않은 경우, 로딩 화면을 표시 (Get.offAllNamed()가 실행될 때까지)
+    if (userId == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add Work Room')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0), // ✅ 전체 패딩 추가
+        child: Obx(() {
+          if (workRoomController.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Work Room Title", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Enter title',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // ✅ 여백 추가
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a title';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                const Text("Description", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3, // ✅ 입력 공간 확대
+                  decoration: InputDecoration(
+                    labelText: 'Enter description',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // ✅ 여백 추가
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a description';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 30),
+
+                // ✅ 버튼 디자인 개선 (너비 확장 + 패딩 추가)
+                SizedBox(
+                  width: double.infinity, // 버튼 너비 확장
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        await workRoomController.addWorkRoom(
+                          _titleController.text,
+                          _descriptionController.text,
+                          userId!, // 로그인한 사용자 ID 사용 (null이 될 가능성 없음)
+                        );
+
+                        if (workRoomController.successMessage.isNotEmpty) {
+                          // ✅ 추가 후 WorkRoom 목록 새로고침
+                          final listController = Get.find<WorkRoomListController>();
+                          listController.fetchWorkRooms();
+
+                          _showSuccessSnackbar(workRoomController.successMessage.value);
+                          Navigator.pop(context);
+                        } else if (workRoomController.errorMessage.isNotEmpty) {
+                          _showErrorDialog(context, workRoomController.errorMessage.value);
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14), // ✅ 버튼 내부 패딩 추가
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // ✅ 버튼 둥글기 조정
+                    ),
+                    child: const Text('Add Work Room', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ✅ 성공 시 화면 상단에 SnackBar 표시
+  void _showSuccessSnackbar(String message) {
+    Get.snackbar(
+      'Success',
+      message,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green.withOpacity(0.8),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  // ✅ 에러 발생 시 AlertDialog 표시
+  void _showErrorDialog(BuildContext context, String errorMessage) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(errorMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/work_room_list_screen.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/core/utils/formatters.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/work_room_requests_page.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/add_work_room_page.dart';
+
+class WorkRoomListScreen extends StatefulWidget {
+  WorkRoomListScreen({Key? key}) : super(key: key);
+
+  @override
+  _WorkRoomListScreenState createState() => _WorkRoomListScreenState();
+}
+
+class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
+  late WorkRoomListController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<WorkRoomListController>();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _buildWorkRoomList(),
+          ),
+          // FAB 추가
+          Positioned(
+            bottom: 16.0,
+            left: 16.0,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              mini: true,
+              onPressed: () {
+                _navigateToWorkRoomRequests(context);
+              },
+              child: Icon(
+                Icons.mail_outline,
+                color: Colors.blue,
+              ),
+              tooltip: "View Work Room Invitations",
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _navigateToWorkRoomRequests(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => WorkRoomRequestsPage()),
+    );
+  }
+
+  // ✅ 로딩 화면
+  Widget _buildLoading() {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  // ✅ 에러 화면
+  Widget _buildError(String errorMessage) {
+    return Center(
+      child: Text(
+        errorMessage,
+        style: const TextStyle(color: Colors.red, fontSize: 16),
+      ),
+    );
+  }
+
+  // ✅ Work Room이 없을 때 빈 화면 + 버튼 추가
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            // ✅ 생성된 이미지 적용
+            'assets/images/workroom_placeholder.png',
+            width: 200,
+            height: 200,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "아직 Work Room이 없습니다!",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "새로운 Work Room을 만들어 협업을 시작하세요.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ Work Room 생성 버튼
+          SizedBox(
+            width: 200,
+            child: ElevatedButton(
+              onPressed: () {
+                Get.to(() => AddWorkRoomPage()); // Work Room 생성 페이지 이동
+              },
+              child: const Text("내 첫 Work Room 만들기"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Work Room 리스트 화면
+  Widget _buildWorkRoomList() {
+    return Obx(() {
+      return RefreshIndicator(
+        onRefresh: () async {
+          await controller.fetchWorkRooms();
+        },
+        color: Theme.of(context).colorScheme.secondary, // ✅ App Theme 색상 적용
+
+        child: controller.isLoading.value
+            ? Container(
+                color: Colors.grey[400],
+                child: ListView(
+                  children: const [
+                    SizedBox(height: 250), // 여백 추가
+                    Center(child: CircularProgressIndicator()), // 로딩 표시
+                  ],
+                ),
+              )
+            : controller.errorMessage.value.isNotEmpty
+                ? _buildError(controller.errorMessage.value)
+                : controller.workRooms.isEmpty
+                    ? _buildEmptyState()
+                    : Container(
+                        color: Colors.black38,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 0),
+                          itemCount: controller.workRooms.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(thickness: 1, height: 1),
+                          itemBuilder: (context, index) {
+                            final workRoom = controller.workRooms[index];
+                            return WorkRoomTile(workRoom: workRoom);
+                          },
+                        ),
+                      ),
+      );
+    });
+  }
+}
+
+class WorkRoomTile extends StatelessWidget {
+  final WorkRoom workRoom;
+
+  const WorkRoomTile({Key? key, required this.workRoom}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Get.toNamed('/work_room/${workRoom.id}');
+      },
+      child: Container(
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      workRoom.title,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                workRoom.description,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: workRoom.participants.map((participant) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        avatar: CircleAvatar(
+                          backgroundImage:
+                              NetworkImage(participant.profilePictureUrl),
+                        ),
+                        label: Text(participant.username),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/work_room_page.dart =====
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/constants.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/chat_screen.dart';
+import 'package:legalfactfinder2025/features/confidentiality/presentation/signature_status_screen.dart';
+import 'package:legalfactfinder2025/features/files/presentation/files_screen.dart';
+import 'package:legalfactfinder2025/features/calendar/presentation/calendar_screen.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_repository.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/work_room_detail_screen.dart';
+import 'package:legalfactfinder2025/features/chat/presentation/thread_list_screen.dart';
+import 'package:legalfactfinder2025/features/audio_record/presentation/audio_recorder_page.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/work_room_request_page.dart';
+
+class WorkRoomPage extends StatefulWidget {
+  const WorkRoomPage({Key? key}) : super(key: key);
+
+  @override
+  _WorkRoomPageState createState() => _WorkRoomPageState();
+}
+
+class _WorkRoomPageState extends State<WorkRoomPage> {
+  late AuthController authController;
+  late WorkRoomRepository workRoomRepository;
+  String? workRoomId;
+  String? userId;
+  WorkRoom? workRoom;
+  bool isLoading = true;
+  String? errorMessage;
+  final bool isRoundedScreen = Platform.isIOS;
+
+  @override
+  void initState() {
+    super.initState();
+
+    authController = Get.find<AuthController>();
+    workRoomRepository = WorkRoomRepository();
+
+    userId = authController.getUserId();
+    if (userId == null) {
+      Future.delayed(Duration.zero, () => Get.offAllNamed('/login'));
+      return;
+    }
+
+    workRoomId = Get.parameters['workRoomId'];
+    if (workRoomId == null) {
+      errorMessage = 'Invalid workRoomId: null';
+      return;
+    }
+
+    _fetchWorkRoom();
+  }
+
+  Future<void> _fetchWorkRoom() async {
+    try {
+      final fetchedWorkRoom =
+          await workRoomRepository.getWorkRoomById(workRoomId!);
+      setState(() {
+        workRoom = fetchedWorkRoom;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (userId == null || workRoomId == null) {
+      return _buildError('Invalid user or work room ID.');
+    }
+
+    if (isLoading) {
+      return _buildLoading();
+    }
+
+    if (errorMessage != null) {
+      return _buildError(errorMessage!);
+    }
+
+    if (workRoom == null) {
+      return _buildError('Work room not found.');
+    }
+
+    return _buildWorkRoomUI(context, workRoom!);
+  }
+
+  Widget _buildLoading() {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildError(String message) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          message,
+          style: const TextStyle(color: Colors.red, fontSize: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkRoomUI(BuildContext context, WorkRoom workRoom) {
+    final participantsMap = {
+      for (var participant in workRoom.participants)
+        participant.userId: participant.username,
+    };
+
+    return DefaultTabController(
+      length: 5,
+      child: Container(
+        color: Colors.white, // 노치 및 홈 인디케이터 영역도 흰색 적용
+
+        child: SafeArea(
+          child: Scaffold(
+            resizeToAvoidBottomInset: false,
+
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+
+              shadowColor: Colors.black45,
+              surfaceTintColor: Colors.white,
+              elevation: 1,
+              title: Text(
+                workRoom.title,
+                style: TextStyle(fontSize: 18),
+              ),
+              actions: [
+                GestureDetector(
+                  // onTap: () => showMainLayoutBottomSheet(context),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(
+                      Icons.search,
+                      size: ICON_SIZE_AT_APPBAR,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showBottomSheet(context),
+                  child: const Padding(
+                    padding: EdgeInsets.only(right: 24.0, left: 8, top: 8, bottom: 8),
+                    child: Icon(
+                      Icons.add_box,
+                      size: ICON_SIZE_AT_APPBAR,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                // IconButton(
+                //   padding: EdgeInsets.only(right: 16.0), // 왼쪽으로 4px 이동
+                //
+                //   icon: const Icon(
+                //     Icons.add_box,
+                //     color: Colors.grey,
+                //     size: ICON_SIZE_AT_APPBAR,
+                //   ),
+                //   onPressed: () => _showBottomSheet(context),
+                // ),
+              ],
+              bottom: const TabBar(
+                labelColor: Colors.lightBlue,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.transparent,
+
+                tabs: [
+                  Tab(icon: Icon(Icons.chat, size: ICON_SIZE_AT_APPBAR)),
+                  Tab(icon: Icon(Icons.attach_file, size: ICON_SIZE_AT_APPBAR)),
+                  Tab(
+                      icon: Icon(Icons.calendar_today,
+                          size: ICON_SIZE_AT_APPBAR)),
+                  Tab(icon: Icon(Icons.info, size: ICON_SIZE_AT_APPBAR)),
+                  Tab(icon: Icon(Icons.lock, size: ICON_SIZE_AT_APPBAR)),
+                ],
+              ),
+            ),
+            body: Stack(
+              children: [
+                TabBarView(
+                  children: [
+                    ChatScreen(workRoom: workRoom, myUserId: userId!),
+                    FilesScreen(workRoomId: workRoom.id),
+                    CalendarScreen(),
+                    WorkRoomDetailScreen(workRoom: workRoom),
+                    SignatureStatusScreen(workRoomId: workRoom.id),
+                  ],
+                ),
+                Positioned(
+                  top: isRoundedScreen ? 32 : 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        builder: (context) => ThreadListScreen(
+                          workRoomId: workRoom.id,
+                          participantsMap: participantsMap,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.blue,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 2,
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.view_list,
+                          color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.person_add),
+                title: const Text('친구 초대'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.to(() => WorkRoomRequestPage(workRoomId: workRoomId!));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.note_add),
+                title: const Text('회의록 생성'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.to(() => AudioRecorderPage());
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/work_room_request_page.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_request_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class WorkRoomRequestPage extends StatelessWidget {
+  final WorkRoomRequestController controller = Get.put(WorkRoomRequestController());
+  final TextEditingController emailController = TextEditingController();
+  final String workRoomId;
+
+  WorkRoomRequestPage({super.key, required this.workRoomId});
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ 현재 로그인된 사용자 ID 가져오기
+    final requesterId = Supabase.instance.client.auth.currentUser?.id;
+    if (requesterId == null) {
+      return const Center(child: Text("Please log in to send work room requests."));
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Send Work Room Request")),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Enter the email address of the user you want to invite to the work room.",
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: "User Email",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Obx(() {
+              return controller.isLoading.value
+                  ? const Center(child: CircularProgressIndicator())
+                  : SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final recipientEmail = emailController.text.trim();
+                    if (recipientEmail.isEmpty) {
+                      Get.snackbar("Error", "Please enter an email address.");
+                      return;
+                    }
+                    controller.sendWorkRoomRequest(requesterId, recipientEmail, workRoomId);
+                  },
+                  child: const Text("Send Request"),
+                ),
+              );
+            }),
+
+            const SizedBox(height: 20),
+
+            // ✅ 성공 메시지 표시
+            Obx(() {
+              if (controller.successMessage.isNotEmpty) {
+                return Text(
+                  controller.successMessage.value,
+                  style: const TextStyle(color: Colors.green, fontSize: 16),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+
+            // ✅ 오류 메시지 표시
+            Obx(() {
+              if (controller.errorMessage.isNotEmpty) {
+                return Text(
+                  controller.errorMessage.value,
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/invitation_page.dart =====
+
+import 'package:flutter/material.dart';
+
+class InvitationPage extends StatelessWidget {
+  const InvitationPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Invitation'),
+      ),
+      body: const Center(
+        child: Text('Invitation Page'),
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/work_room_requests_page.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/recieved_work_room_request_list_screen.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/sent_work_room_request_list_screen.dart';
+
+
+class WorkRoomRequestsPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Container(
+        color: Colors.white,
+        child: SafeArea(
+          child: Scaffold(
+            appBar: AppBar(
+                surfaceTintColor : Colors.white,
+              title: Text("Work Room Invitations"),
+              bottom: TabBar(
+                tabs: [
+                  Tab( text: "Received"),
+                  Tab( text: "Sent"),
+                ],
+              ),
+            ),
+            body: TabBarView(
+              children: [
+                RecievedWorkRoomRequestListScreen(),
+                SentWorkRoomRequestListScreen(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/sent_work_room_request_list_screen.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_request_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_request_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class SentWorkRoomRequestListScreen extends StatefulWidget {
+  @override
+  _SentWorkRoomRequestListScreenState createState() => _SentWorkRoomRequestListScreenState();
+}
+
+class _SentWorkRoomRequestListScreenState extends State<SentWorkRoomRequestListScreen> {
+  final WorkRoomRequestController controller = Get.put(WorkRoomRequestController());
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Ensure the API call happens after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        controller.fetchSentRequests(userId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (controller.errorMessage.isNotEmpty) {
+        return Center(child: Text(controller.errorMessage.value));
+      }
+      if (controller.sentRequests.isEmpty) {
+        return _buildEmptyState();
+      }
+      return ListView.builder(
+        itemCount: controller.sentRequests.length,
+        itemBuilder: (context, index) {
+          final WorkRoomRequest request = controller.sentRequests[index];
+          return ListTile(
+            leading: const Icon(Icons.send, color: Colors.blue),
+            title: Text("Work Room ID: \${request.workRoomId}"),
+            subtitle: Text("Sent to: \${request.recipientId ?? request.recipientEmail}"),
+            trailing: _buildRequestActions(request.id),
+          );
+        },
+      );
+    });
+  }
+
+  // ✅ 요청 취소 버튼
+  Widget _buildRequestActions(String requestId) {
+    return IconButton(
+      icon: const Icon(Icons.cancel, color: Colors.red),
+      onPressed: () {
+        print("❌ Canceled request: \$requestId");
+        // TODO: 초대 취소 처리 로직 추가
+      },
+    );
+  }
+
+  // ✅ 보낸 초대가 없을 때의 UI
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.outgoing_mail, size: 80, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "No sent work room invitations",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Text(
+            "You haven't sent any work room invitations yet.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/work_room_detail_screen.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+
+class WorkRoomDetailScreen extends StatelessWidget {
+  final WorkRoom workRoom;
+
+  const WorkRoomDetailScreen({Key? key, required this.workRoom}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // WorkRoom title
+            Text(
+              workRoom.title,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            // WorkRoom description
+            Text(
+              workRoom.description,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            // Participants section
+            const Text(
+              "Participants",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: workRoom.participants.length,
+              separatorBuilder: (context, index) => const Divider(),
+              itemBuilder: (context, index) {
+                final participant = workRoom.participants[index];
+                return ParticipantTile(participant: participant);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ParticipantTile extends StatelessWidget {
+  final Participant participant;
+
+  const ParticipantTile({Key? key, required this.participant}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Profile picture
+        CircleAvatar(
+          radius: 24,
+          backgroundImage: NetworkImage(participant.profilePictureUrl),
+          backgroundColor: Colors.grey[300],
+        ),
+        const SizedBox(width: 12),
+        // Participant details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                participant.username,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                participant.isLawyer ? "Lawyer" : "Participant",
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        // Admin Badge
+        if (participant.isAdmin)
+          const Text(
+            "Admin",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/presentation/recieved_work_room_request_list_screen.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_request_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_request_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class RecievedWorkRoomRequestListScreen extends StatefulWidget {
+  @override
+  _RecievedWorkRoomRequestListScreenState createState() => _RecievedWorkRoomRequestListScreenState();
+}
+
+class _RecievedWorkRoomRequestListScreenState extends State<RecievedWorkRoomRequestListScreen> {
+  final WorkRoomRequestController controller = Get.put(WorkRoomRequestController());
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Ensure the API call happens after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        controller.fetchReceivedRequests(userId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (controller.errorMessage.isNotEmpty) {
+        return Center(child: Text(controller.errorMessage.value));
+      }
+      if (controller.receivedRequests.isEmpty) {
+        return _buildEmptyState();
+      }
+      return ListView.builder(
+        itemCount: controller.receivedRequests.length,
+        itemBuilder: (context, index) {
+          final WorkRoomRequest request = controller.receivedRequests[index];
+          return ListTile(
+            leading: const Icon(Icons.meeting_room, color: Colors.blue),
+            title: Text("Work Room ID: \${request.workRoomId}"),
+            subtitle: Text("Invited by: \${request.requesterId}"),
+            trailing: _buildRequestActions(request.id),
+          );
+        },
+      );
+    });
+  }
+
+  // ✅ 초대장 수락/거절 버튼
+  Widget _buildRequestActions(String requestId) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.check, color: Colors.green),
+          onPressed: () {
+
+              controller.handleWorkRoomRequest(requestId,  'accepted');
+
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.red),
+          onPressed: () {
+
+              controller.handleWorkRoomRequest(requestId,  'declined');
+
+          },
+        ),
+      ],
+    );
+  }
+
+  // ✅ 받은 초대가 없을 때의 UI
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.mail_outline, size: 80, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "No work room invitations",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Text(
+            "You haven't received any work room invitations yet.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ===== FILE: ./lib/features/work_room/work_room_controller.dart =====
+
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_repository.dart';
+
+class WorkRoomController extends GetxController {
+  final WorkRoomRepository _repository;
+
+  // 상태 변수
+  var workRoom = Rxn<WorkRoom>(); // Rxn: null을 허용하는 반응형 변수
+  var isLoading = false.obs; // 로딩 상태
+  var errorMessage = ''.obs; // 에러 메시지
+  var successMessage = ''.obs; // 성공 메시지
+
+  WorkRoomController(this._repository);
+
+  // WorkRoom 데이터 가져오기
+  Future<void> fetchWorkRoom(String workRoomId) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final result = await _repository.getWorkRoomById(workRoomId);
+      workRoom.value = result;
+    } catch (e) {
+      errorMessage.value = 'Failed to load WorkRoom: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+
+  // 새로운 WorkRoom 추가
+  Future<void> addWorkRoom(String title, String description, String userId) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+    try {
+      await _repository.createWorkRoom(title, description, userId);
+      successMessage.value = 'WorkRoom added successfully!';
+    } catch (e) {
+      errorMessage.value = 'Failed to add WorkRoom: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+}
+

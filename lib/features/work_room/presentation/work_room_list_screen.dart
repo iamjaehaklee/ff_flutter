@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/core/utils/formatters.dart';
+import 'package:legalfactfinder2025/features/chat/data/latest_message_model.dart';
+import 'package:legalfactfinder2025/features/users/users_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/presentation/widgets/work_room_tile.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/work_room_requests_page.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_latest_messages_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/add_work_room_page.dart';
@@ -14,41 +18,45 @@ class WorkRoomListScreen extends StatefulWidget {
 }
 
 class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
-  late WorkRoomListController controller;
-
+  late WorkRoomListController workRoomListController;
+  late WorkRoomLatestMessagesController latestMessagesController;
+  late UsersController usersController;
   @override
   void initState() {
     super.initState();
-    controller = Get.find<WorkRoomListController>();
+    workRoomListController = Get.find<WorkRoomListController>();
+    latestMessagesController = Get.find<WorkRoomLatestMessagesController>();
+    usersController = Get.find<UsersController>();
+
+    workRoomListController.fetchWorkRooms();
+    latestMessagesController.fetchLatestMessages();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _buildWorkRoomList(),
-          ),
-          // FAB 추가
-          Positioned(
-            bottom: 16.0,
-            left: 16.0,
-            child: FloatingActionButton(
-              backgroundColor: Colors.white,
-              mini: true,
-              onPressed: () {
-                _navigateToWorkRoomRequests(context);
-              },
-              child: Icon(
-                Icons.mail_outline,
-                color: Colors.blue,
-              ),
-              tooltip: "View Work Room Invitations",
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: _buildWorkRoomList(),
+        ),
+        // FAB 추가
+        Positioned(
+          bottom: 16.0,
+          left: 16.0,
+          child: FloatingActionButton(
+            backgroundColor: Colors.white,
+            mini: true,
+            onPressed: () {
+              _navigateToWorkRoomRequests(context);
+            },
+            child: Icon(
+              Icons.mail_outline,
+              color: Colors.blue,
             ),
-          )
-        ],
-      ),
+            tooltip: "View Work Room Invitations",
+          ),
+        )
+      ],
     );
   }
 
@@ -117,102 +125,48 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
   // ✅ Work Room 리스트 화면
   Widget _buildWorkRoomList() {
     return Obx(() {
+      if (workRoomListController.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (workRoomListController.errorMessage.isNotEmpty) {
+        return Center(child: Text(workRoomListController.errorMessage.value));
+      }
+
+      /// ✅ 최신 메시지가 있는 Work Room을 먼저 정렬
+      final sortedWorkRooms = List.of(workRoomListController.workRooms);
+      sortedWorkRooms.sort((a, b) {
+        final LatestMessageModel? latestA = latestMessagesController.latestMessages[a.id];
+        final LatestMessageModel? latestB = latestMessagesController.latestMessages[b.id];
+
+        /// ✅ 메시지가 없는 경우 정렬 기준 설정
+        if (latestA == null && latestB == null) return 0;
+        if (latestA == null) return 1;
+        if (latestB == null) return -1;
+
+        /// ✅ `lastMessageTime`이 `DateTime`임을 보장
+        return latestB.lastMessageTime.compareTo(latestA.lastMessageTime);
+      });
+
       return RefreshIndicator(
         onRefresh: () async {
-          await controller.fetchWorkRooms();
+          await workRoomListController.fetchWorkRooms();
+          await latestMessagesController.fetchLatestMessages();
         },
-        color: Theme.of(context).colorScheme.secondary, // ✅ App Theme 색상 적용
-
-        child: controller.isLoading.value
-            ? Container(
-                color: Colors.grey[400],
-                child: ListView(
-                  children: const [
-                    SizedBox(height: 250), // 여백 추가
-                    Center(child: CircularProgressIndicator()), // 로딩 표시
-                  ],
-                ),
-              )
-            : controller.errorMessage.value.isNotEmpty
-                ? _buildError(controller.errorMessage.value)
-                : controller.workRooms.isEmpty
-                    ? _buildEmptyState()
-                    : Container(
-                        color: Colors.black38,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(vertical: 0),
-                          itemCount: controller.workRooms.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(thickness: 1, height: 1),
-                          itemBuilder: (context, index) {
-                            final workRoom = controller.workRooms[index];
-                            return WorkRoomTile(workRoom: workRoom);
-                          },
-                        ),
-                      ),
+        color: Theme.of(context).colorScheme.secondary,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 0),
+          itemCount: sortedWorkRooms.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 1),
+          itemBuilder: (context, index) {
+            final workRoom = sortedWorkRooms[index];
+            return WorkRoomTile(workRoom: workRoom);
+          },
+        ),
       );
     });
   }
+
+
 }
 
-class WorkRoomTile extends StatelessWidget {
-  final WorkRoom workRoom;
 
-  const WorkRoomTile({Key? key, required this.workRoom}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Get.toNamed('/work_room/${workRoom.id}');
-      },
-      child: Container(
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      workRoom.title,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                workRoom.description,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: workRoom.participants.map((participant) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Chip(
-                        avatar: CircleAvatar(
-                          backgroundImage:
-                              NetworkImage(participant.profilePictureUrl),
-                        ),
-                        label: Text(participant.username),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

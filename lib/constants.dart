@@ -13,14 +13,15 @@ const String getThreadsEdgeFunctionUrl = '$baseUrl/functions/v1/get_threads_by_w
 const String getParentMessageEdgeFunctionUrl = '$baseUrl/functions/v1/get_chat_message_by_id';
 const String getUserNotificationsEdgeFunctionUrl = '$baseUrl/functions/v1/get_user_notifications';
 const String putDocumentAnnotationEdgeFunctionUrl = '$baseUrl/functions/v1/put_document_annotation';
+const String getWorkRoomLatestMessagesUrl = '$baseUrl/functions/v1/get_work_room_latest_messages';
+
+const String getUsersByIdsUrl = '$baseUrl/functions/v1/get_users_by_ids';
 
 
 // JWT Token
 const String jwtToken = anonKey; // 재사용 가능하도록 alias 설정
 
-// for test
-const String TEST_USER_NAME = "TEST USER";
-const String TEST_USER_EMAIL = "iamjaehaklee@gmail.com";
+
 
 const String appTitle = "Legal FactFinder";
 const String appSubtitle = "철저한 팩트 파악은 법률 문제 해결의 핵심입니다!";
