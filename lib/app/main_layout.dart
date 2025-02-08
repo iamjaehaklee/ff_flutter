@@ -13,6 +13,7 @@ import 'package:legalfactfinder2025/features/work_room/presentation/work_room_li
 import 'package:legalfactfinder2025/features/friend/presentation/friend_list_screen.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/add_work_room_page.dart';
 import 'package:legalfactfinder2025/core/setting/setting_screen.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
 
 class MainLayout extends StatefulWidget {
@@ -41,8 +42,8 @@ class _MainLayoutState extends State<MainLayout> {
     print("Checking authentication status...");
     authController.refreshUser(); // Refresh user info
 
-    if (authController.userId.value != null) {
-      workRoomListController.fetchWorkRooms();
+    if (authController.getUserId() != null) {
+      workRoomListController.fetchWorkRoomsWithParticipantsByUserId(authController.getUserId()!);
       friendListController.fetchFriends();
     }
   }

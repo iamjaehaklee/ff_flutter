@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:legalfactfinder2025/constants.dart';
 import 'package:legalfactfinder2025/core/utils/formatters.dart';
+import 'package:legalfactfinder2025/core/utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'file_model.dart';
 import 'dart:convert';
@@ -15,8 +16,7 @@ class FileDataRepository {
     final url = Uri.parse('$baseUrl/functions/v1/get_files_by_work_room_id');
 
     try {
-      print(
-          "🔵 [REQUEST] Fetching files for WorkRoom ID: $workRoomId from $url");
+      Logger.i("Fetching files for WorkRoom ID: $workRoomId from $url");
 
       // Call the Edge Function
       final response = await http.post(
@@ -28,14 +28,14 @@ class FileDataRepository {
         body: jsonEncode({'work_room_id': workRoomId}),
       );
 
-      print("🟢 [RESPONSE] Status Code: ${response.statusCode}");
-      print("🟢 Raw Body: ${response.body}");
+      Logger.s("Status Code: ${response.statusCode}");
+      Logger.s("Raw Body: ${response.body}");
 
       if (response.statusCode == 200) {
         final decodedResponse = utf8.decode(response.bodyBytes);
         final responseData = jsonDecode(decodedResponse);
 
-        print("🔹 Parsed JSON: $responseData");
+        Logger.s("Parsed JSON: $responseData");
 
         // Ensure the response contains the 'files' key
         if (responseData is! Map<String, dynamic> ||
@@ -47,7 +47,7 @@ class FileDataRepository {
 
         // Map the files list to FileData objects
         return filesList.map((json) {
-          print("Processing JSON object: $json");
+          Logger.d("Processing JSON object: $json");
           return FileData(
             id: json['id'] as String? ?? '',
             storageKey: json['file_url'] as String? ?? '',
@@ -72,39 +72,18 @@ class FileDataRepository {
         throw Exception("Failed to fetch files: ${response.body}");
       }
     } catch (e) {
-      print("🚨 [EXCEPTION] Error fetching files");
-      print("🔴 Exception: $e");
+      Logger.e("Error fetching files", "FileFetch", e);
       throw Exception("Error fetching files: $e");
     }
   }
 
-  // Upload file to Supabase Storage and save metadata to the database
-  Future<void> uploadFile({
-    required String path,
-    required String fileName,
-    required String description,
-    required String workRoomId,
-    required String uploaderId,
-  }) async {
-    try {
-      final file = File(path);
 
-      final timestampedFileName = generateTimestampedFileName(fileName);
-      // Upload file to Supabase Storage
-      final storageResponse = await supabase.storage
-          .from('work_room_files')
-          .upload(workRoomId + '/' + timestampedFileName, file);
-      if (storageResponse.isEmpty) {
-        throw Exception('Failed to upload file.');
-      }
-    } catch (e) {
-      throw Exception('Error uploading file: $e');
-    }
-  }
 
   // Download file from Supabase Storage
   Future<void> downloadFile(String fileName, String savePath) async {
     try {
+      Logger.i('Downloading file: $fileName');
+      
       final response =
           await supabase.storage.from('work_room_files').download(fileName);
       if (response.isEmpty) {
@@ -113,7 +92,9 @@ class FileDataRepository {
 
       final file = File(savePath);
       await file.writeAsBytes(response);
+      Logger.s('File downloaded successfully');
     } catch (e) {
+      Logger.e('Error downloading file', 'FileDownload', e);
       throw Exception('Error downloading file: $e');
     }
   }

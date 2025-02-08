@@ -79,30 +79,34 @@ void main() async {
   final workRoomRepository = WorkRoomRepository();
   Get.put(WorkRoomController(workRoomRepository)); // WorkRoomController 등록
 
-  // WorkRoomRepository 및 Controller 초기화
+
   Get.put(WorkRoomListController()); // WorkRoomController 등록
+
+
+  // WorkRoomRepository 및 Controller 초기화
   Get.put(FriendListController()); // WorkRoomController 등록
 
   // ChatRepository 및 Controller 초기화
   final messageRepository = MessageRepository(
-    getChatMessagesEdgeFunctionUrl: getChatMessagesEdgeFunctionUrl,
-    putChatMessageEdgeFunctionUrl: putChatMessageEdgeFunctionUrl,
+    getChatMessagesEdgeFunctionUrl: getChatMessages_EdgeFunctionUrl,
+    putChatMessageEdgeFunctionUrl: putChatMessage_EdgeFunctionUrl,
     jwtToken: jwtToken,
   );
   Get.put(MessageController(messageRepository)); // Register ChatController
 
   // ThreadRepository 및 Controller 초기화
   final threadRepository = ThreadRepository(
-    getThreadsEdgeFunctionUrl: getThreadsEdgeFunctionUrl,
+    getThreadsEdgeFunctionUrl: getThreads_EdgeFunctionUrl,
     jwtToken: jwtToken,
   );
   Get.put(ThreadController(threadRepository)); // Register ThreadController
 
   // ThreadMessageRepository 및 Controller 초기화
   final threadMessageRepository = ThreadMessageRepository(
-    getParentMessageEdgeFunctionUrl: getParentMessageEdgeFunctionUrl,
-    getThreadMessagesEdgeFunctionUrl: getThreadChatMessagesEdgeFunctionUrl,
-    putThreadMessageEdgeFunctionUrl: putThreadChatMessageEdgeFunctionUrl,
+    getParentMessageEdgeFunctionUrl: getParentMessage_EdgeFunctionUrl,
+    getThreadMessagesEdgeFunctionUrl: getThreadChatMessages_EdgeFunctionUrl,
+    putThreadMessageEdgeFunctionUrl: putThreadChatMessage_EdgeFunctionUrl,
+    updateThreadMessageEdgeFunctionUrl: updateThreadChatMessage_EdgeFunctionUrl,
     jwtToken: jwtToken,
   );
   Get.put(ThreadMessageController(

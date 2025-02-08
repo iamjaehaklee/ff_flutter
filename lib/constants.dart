@@ -5,15 +5,31 @@ const String baseUrl = 'https://jschbqhrzkdqcpbidqhj.supabase.co';
 const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzY2hicWhyemtkcWNwYmlkcWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0NDM3MjMsImV4cCI6MjA1MzAxOTcyM30.0LZdDrL_MvVUOdHQm8quR1xfpWIyxq7MofdaJ_hNRJQ';
 
 // Supabase Edge Functions
-const String getChatMessagesEdgeFunctionUrl = '$baseUrl/functions/v1/get_chat_messages';
-const String putChatMessageEdgeFunctionUrl = '$baseUrl/functions/v1/put_chat_message';
-const String getThreadChatMessagesEdgeFunctionUrl = '$baseUrl/functions/v1/get_thread_chat_messages';
-const String putThreadChatMessageEdgeFunctionUrl = '$baseUrl/functions/v1/put_thread_chat_message';
-const String getThreadsEdgeFunctionUrl = '$baseUrl/functions/v1/get_threads_by_work_room_id';
-const String getParentMessageEdgeFunctionUrl = '$baseUrl/functions/v1/get_chat_message_by_id';
-const String getUserNotificationsEdgeFunctionUrl = '$baseUrl/functions/v1/get_user_notifications';
-const String putDocumentAnnotationEdgeFunctionUrl = '$baseUrl/functions/v1/put_document_annotation';
+// chat_messages
+const String getChatMessages_EdgeFunctionUrl = '$baseUrl/functions/v1/get_chat_messages';
+const String putChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/put_chat_message';
+const String updateChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/update_chat_message';
+const String updateChatMessageHighlight_EdgeFunctionUrl = '$baseUrl/functions/v1/update_chat_message_highlight';
+const String deleteChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/delete_chat_message';
+
+// thread_chat_messages
+const String getThreads_EdgeFunctionUrl = '$baseUrl/functions/v1/get_threads_by_work_room_id';
+const String getThreadChatMessages_EdgeFunctionUrl = '$baseUrl/functions/v1/get_thread_chat_messages';
+const String putThreadChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/put_thread_chat_message';
+const String getParentMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/get_chat_message_by_id';
+const String updateThreadChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/update_thread_chat_message';
+const String updateThreadChatMessageHighlight_EdgeFunctionUrl = '$baseUrl/functions/v1/update_thread_chat_message_highlight';
+const String deleteThreadChatMessage_EdgeFunctionUrl = '$baseUrl/functions/v1/delete_thread_chat_message';
+
+// work_rooms
 const String getWorkRoomLatestMessagesUrl = '$baseUrl/functions/v1/get_work_room_latest_messages';
+
+// notifications
+const String getUserNotificationsEdgeFunctionUrl = '$baseUrl/functions/v1/get_user_notifications';
+
+// annotations
+const String putDocumentAnnotationEdgeFunctionUrl = '$baseUrl/functions/v1/put_document_annotation';
+
 
 const String getUsersByIdsUrl = '$baseUrl/functions/v1/get_users_by_ids';
 

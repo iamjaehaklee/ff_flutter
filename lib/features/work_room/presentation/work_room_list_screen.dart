@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/core/utils/formatters.dart';
+import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
 import 'package:legalfactfinder2025/features/chat/data/latest_message_model.dart';
 import 'package:legalfactfinder2025/features/users/users_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/widgets/work_room_tile.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/work_room_requests_page.dart';
+import 'package:legalfactfinder2025/features/work_room/work_room_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_latest_messages_controller.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_list_controller.dart';
-import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_with_participants_model.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/add_work_room_page.dart';
 
 class WorkRoomListScreen extends StatefulWidget {
@@ -21,25 +24,38 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
   late WorkRoomListController workRoomListController;
   late WorkRoomLatestMessagesController latestMessagesController;
   late UsersController usersController;
+  late AuthController authController;
+  String? userId;
+
   @override
   void initState() {
     super.initState();
+    print("[WorkRoomListScreen.initState] Initializing controllers.");
     workRoomListController = Get.find<WorkRoomListController>();
     latestMessagesController = Get.find<WorkRoomLatestMessagesController>();
     usersController = Get.find<UsersController>();
+    authController = Get.find<AuthController>();
 
-    workRoomListController.fetchWorkRooms();
+    userId = authController.getUserId();
+    if (userId == null) {
+      print("[WorkRoomListScreen.initState] User ID is null.");
+      return;
+    }
+
+    // Fetch work room with participants and latest messages
+    workRoomListController.fetchWorkRoomsWithParticipantsByUserId(userId!);
     latestMessagesController.fetchLatestMessages();
   }
 
   @override
   Widget build(BuildContext context) {
+    print("[WorkRoomListScreen.build] Building WorkRoomListScreen UI.");
     return Stack(
       children: [
         Positioned.fill(
           child: _buildWorkRoomList(),
         ),
-        // FAB 추가
+        // Floating Action Button for Work Room Invitations
         Positioned(
           bottom: 16.0,
           left: 16.0,
@@ -55,25 +71,28 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
             ),
             tooltip: "View Work Room Invitations",
           ),
-        )
+        ),
       ],
     );
   }
 
   void _navigateToWorkRoomRequests(BuildContext context) {
+    print("[WorkRoomListScreen._navigateToWorkRoomRequests] Navigating to WorkRoomRequestsPage.");
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => WorkRoomRequestsPage()),
     );
   }
 
-  // ✅ 로딩 화면
+  /// Loading UI
   Widget _buildLoading() {
+    print("[WorkRoomListScreen._buildLoading] Displaying loading indicator.");
     return const Center(child: CircularProgressIndicator());
   }
 
-  // ✅ 에러 화면
+  /// Error UI
   Widget _buildError(String errorMessage) {
+    print("[WorkRoomListScreen._buildError] Displaying error: $errorMessage");
     return Center(
       child: Text(
         errorMessage,
@@ -82,14 +101,14 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
     );
   }
 
-  // ✅ Work Room이 없을 때 빈 화면 + 버튼 추가
+  /// Empty State UI
   Widget _buildEmptyState() {
+    print("[WorkRoomListScreen._buildEmptyState] No work rooms found.");
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
-            // ✅ 생성된 이미지 적용
             'assets/images/workroom_placeholder.png',
             width: 200,
             height: 200,
@@ -106,13 +125,12 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
-
-          // ✅ Work Room 생성 버튼
           SizedBox(
             width: 200,
             child: ElevatedButton(
               onPressed: () {
-                Get.to(() => AddWorkRoomPage()); // Work Room 생성 페이지 이동
+                print("[WorkRoomListScreen._buildEmptyState] Navigating to AddWorkRoomPage.");
+                Get.to(() => AddWorkRoomPage());
               },
               child: const Text("내 첫 Work Room 만들기"),
             ),
@@ -122,51 +140,61 @@ class _WorkRoomListScreenState extends State<WorkRoomListScreen> {
     );
   }
 
-  // ✅ Work Room 리스트 화면
+  /// Work Room List UI
   Widget _buildWorkRoomList() {
+    print("[WorkRoomListScreen._buildWorkRoomList] Building work room list.");
     return Obx(() {
+      // Loading state
       if (workRoomListController.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        print("[WorkRoomListScreen._buildWorkRoomList] workRoomController.isLoading is true.");
+        return _buildLoading();
       }
+      // Error state
       if (workRoomListController.errorMessage.isNotEmpty) {
-        return Center(child: Text(workRoomListController.errorMessage.value));
+        print("[WorkRoomListScreen._buildWorkRoomList] workRoomController.errorMessage: ${workRoomListController.errorMessage.value}");
+        return _buildError(workRoomListController.errorMessage.value);
       }
 
-      /// ✅ 최신 메시지가 있는 Work Room을 먼저 정렬
-      final sortedWorkRooms = List.of(workRoomListController.workRooms);
-      sortedWorkRooms.sort((a, b) {
-        final LatestMessageModel? latestA = latestMessagesController.latestMessages[a.id];
-        final LatestMessageModel? latestB = latestMessagesController.latestMessages[b.id];
+      // Extract the work room list from the observable.
+      List<WorkRoomWithParticipants> workRoomList = workRoomListController.workRoomWithParticipantsList;
+      print("[WorkRoomListScreen._buildWorkRoomList] Retrieved workRoomList of length: ${workRoomList.length}");
 
-        /// ✅ 메시지가 없는 경우 정렬 기준 설정
+      // If no work rooms, show empty state.
+      if (workRoomList.isEmpty) {
+        return _buildEmptyState();
+      }
+
+      // Sort the list based on latest message times.
+      workRoomList.sort((a, b) {
+        final LatestMessageModel? latestA = latestMessagesController.latestMessages[a.workRoom.id];
+        final LatestMessageModel? latestB = latestMessagesController.latestMessages[b.workRoom.id];
+
         if (latestA == null && latestB == null) return 0;
         if (latestA == null) return 1;
         if (latestB == null) return -1;
 
-        /// ✅ `lastMessageTime`이 `DateTime`임을 보장
         return latestB.lastMessageTime.compareTo(latestA.lastMessageTime);
       });
+      print("[WorkRoomListScreen._buildWorkRoomList] Sorted work room list: ${workRoomList.map((e) => e.workRoom.title).toList()}");
 
       return RefreshIndicator(
         onRefresh: () async {
-          await workRoomListController.fetchWorkRooms();
+          print("[WorkRoomListScreen._buildWorkRoomList] Refreshing work room list.");
+          await workRoomListController.fetchWorkRoomsWithParticipantsByUserId(userId!);
           await latestMessagesController.fetchLatestMessages();
         },
         color: Theme.of(context).colorScheme.secondary,
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 0),
-          itemCount: sortedWorkRooms.length,
+          itemCount: workRoomList.length,
           separatorBuilder: (context, index) => const SizedBox(height: 1),
           itemBuilder: (context, index) {
-            final workRoom = sortedWorkRooms[index];
-            return WorkRoomTile(workRoom: workRoom);
+            final workRoomWithParticipants = workRoomList[index];
+            print("[WorkRoomListScreen._buildWorkRoomList] Building tile for work room: ${workRoomWithParticipants.workRoom.title}");
+            return WorkRoomTile(workRoomWithParticipants: workRoomWithParticipants);
           },
         ),
       );
     });
   }
-
-
 }
-
-

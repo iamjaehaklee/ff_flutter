@@ -5,13 +5,13 @@ import 'package:legalfactfinder2025/features/chat/data/latest_message_model.dart
 import 'package:legalfactfinder2025/features/users/presentation/widgets/user_avatar.dart';
 import 'package:legalfactfinder2025/features/users/data/user_model.dart';
 import 'package:legalfactfinder2025/features/users/users_controller.dart';
-import 'package:legalfactfinder2025/features/work_room/data/work_room_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_with_participants_model.dart';
 import 'package:legalfactfinder2025/features/work_room/work_room_latest_messages_controller.dart';
 
 class WorkRoomTile extends StatelessWidget {
-  final WorkRoom workRoom;
+  final WorkRoomWithParticipants workRoomWithParticipants;
 
-  const WorkRoomTile({Key? key, required this.workRoom}) : super(key: key);
+  const WorkRoomTile({Key? key, required this.workRoomWithParticipants}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ class WorkRoomTile extends StatelessWidget {
     final usersController = Get.find<UsersController>();
 
     /// ✅ `LatestMessageModel`을 사용하여 최신 메시지 접근
-    final LatestMessageModel? latestMessage = latestMessagesController.latestMessages[workRoom.id];
+    final LatestMessageModel? latestMessage = latestMessagesController.latestMessages[workRoomWithParticipants.workRoom.id];
 
     final senderId = latestMessage?.lastMessageSenderId;
 
@@ -30,7 +30,7 @@ class WorkRoomTile extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        Get.toNamed('/work_room/${workRoom.id}');
+        Get.toNamed('/work_room/${workRoomWithParticipants.workRoom.id}');
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -43,7 +43,7 @@ class WorkRoomTile extends StatelessWidget {
           children: [
             /// 🔹 Work Room 제목
             Text(
-              workRoom.title,
+              workRoomWithParticipants.workRoom.title,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

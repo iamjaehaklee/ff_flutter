@@ -143,4 +143,40 @@ class WorkRoomRequestRepository {
       return false;
     }
   }
+
+  /// Edge Function 'get_work_room_requests_by_work_room_id'를 호출하여,
+  /// 주어진 work_room_id에 해당하는 WorkRoomRequest 리스트를 반환합니다.
+  Future<List<WorkRoomRequest>> getWorkRoomRequestsByWorkRoomId(String workRoomId) async {
+    try {
+      debugPrint("🔄 [WorkRoomRepository] Calling Edge Function 'get_work_room_requests_by_work_room_id' for workRoomId: $workRoomId");
+
+      final response = await supabase.functions.invoke(
+        'get_work_room_requests_by_work_room_id',
+        body: {'work_room_id': workRoomId},
+      );
+
+      if (response.data == null) {
+        debugPrint("❌ [WorkRoomRepository] No data received from Edge Function.");
+        return [];
+      }
+
+      List<dynamic> responseData;
+      if (response.data is String) {
+        responseData = jsonDecode(response.data as String);
+      } else if (response.data is List) {
+        responseData = response.data as List;
+      } else {
+        throw Exception("Unexpected response format: ${response.data}");
+      }
+
+      debugPrint("✅ [WorkRoomRepository] Received ${responseData.length} work room requests.");
+      return responseData
+          .map((e) => WorkRoomRequest.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e, stacktrace) {
+      debugPrint("❌ [WorkRoomRepository] Exception in getWorkRoomRequestsByWorkRoomId: $e");
+      debugPrint("🔍 [WorkRoomRepository] StackTrace: $stacktrace");
+      return [];
+    }
+  }
 }

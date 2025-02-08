@@ -8,27 +8,25 @@ class ThreadController extends GetxController {
   ThreadController(this._threadRepository);
 
   // Observable for threads
-  var threads = <Thread>[].obs;
-  var isThreadsLoading = false.obs; // Loading state for threads
+  RxList<Thread> threads = <Thread>[].obs;
+  RxBool isThreadsLoading = false.obs;
 
-  // Fetch threads for a specific work room
   Future<void> loadThreads(String workRoomId) async {
-    isThreadsLoading.value = true; // Start loading
+    isThreadsLoading.value = true;
     try {
-      final fetchedThreads = await _threadRepository.fetchThreads(workRoomId);
-      threads.value = fetchedThreads; // Update the observable list
+      final List<Thread> fetchedThreads = await _threadRepository.fetchThreads(workRoomId);
+      threads.assignAll(fetchedThreads);
     } catch (e) {
       print('Error loading threads: $e');
     } finally {
-      isThreadsLoading.value = false; // End loading
+      isThreadsLoading.value = false;
     }
   }
 
-  // Refresh threads for real-time updates
   Future<void> refreshThreads(String workRoomId) async {
     try {
-      final refreshedThreads = await _threadRepository.fetchThreads(workRoomId);
-      threads.value = refreshedThreads; // Update threads with refreshed data
+      final List<Thread> refreshedThreads = await _threadRepository.fetchThreads(workRoomId);
+      threads.assignAll(refreshedThreads);
     } catch (e) {
       print('Error refreshing threads: $e');
     }

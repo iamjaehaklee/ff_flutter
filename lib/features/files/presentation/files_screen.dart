@@ -152,7 +152,12 @@ class FilesScreen extends StatelessWidget {
   // 파일 선택 메서드
   Future<String?> _pickFile() async {
     print("Opening file picker...");
-    final result = await FilePicker.platform.pickFiles();
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+      dialogTitle: "파일을 선택하세요",
+      lockParentWindow: true,  // ✅ iOS에서 전체 화면을 덮는 문제 해결
+    );
     if (result != null) {
       print("File picked: ${result.files.single.path}");
       return result.files.single.path;

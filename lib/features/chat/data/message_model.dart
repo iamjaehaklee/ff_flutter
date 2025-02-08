@@ -54,6 +54,58 @@ class Message {
     this.imageFileId,
   });
 
+  Message copyWith({
+    String? id,
+    String? workRoomId,
+    String? senderId,
+    String? parentMessageId,
+    String? content,
+    String? messageType,
+    int? threadCount,
+    bool? hasAttachments,
+    String? attachmentFileStorageKey,
+    String? attachmentFileType,
+    String? highlight,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? annotationId,
+    String? ocrText,
+    String? annotationImageStorageKey,
+    bool? isSystem,
+    String? systemEventType,
+    String? replyToMessageId,
+    String? replyToMessageContent,
+    String? replyToMessageSenderId,
+    DateTime? replyToMessageCreatedAt,
+    String? imageFileId,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      workRoomId: workRoomId ?? this.workRoomId,
+      senderId: senderId ?? this.senderId,
+      parentMessageId: parentMessageId ?? this.parentMessageId,
+      content: content ?? this.content,
+      messageType: messageType ?? this.messageType,
+      threadCount: threadCount ?? this.threadCount,
+      hasAttachments: hasAttachments ?? this.hasAttachments,
+      attachmentFileStorageKey: attachmentFileStorageKey ?? this.attachmentFileStorageKey,
+      attachmentFileType: attachmentFileType ?? this.attachmentFileType,
+      highlight: highlight ?? this.highlight,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      annotationId: annotationId ?? this.annotationId,
+      ocrText: ocrText ?? this.ocrText,
+      annotationImageStorageKey: annotationImageStorageKey ?? this.annotationImageStorageKey,
+      isSystem: isSystem ?? this.isSystem,
+      systemEventType: systemEventType ?? this.systemEventType,
+      replyToMessageId: replyToMessageId ?? this.replyToMessageId,
+      replyToMessageContent: replyToMessageContent ?? this.replyToMessageContent,
+      replyToMessageSenderId: replyToMessageSenderId ?? this.replyToMessageSenderId,
+      replyToMessageCreatedAt: replyToMessageCreatedAt ?? this.replyToMessageCreatedAt,
+      imageFileId: imageFileId ?? this.imageFileId,
+    );
+  }
+
   // Null-safe factory method for JSON deserialization
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(

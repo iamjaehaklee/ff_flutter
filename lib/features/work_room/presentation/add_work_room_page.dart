@@ -111,8 +111,8 @@ class _AddWorkRoomPageState extends State<AddWorkRoomPage> {
 
                         if (workRoomController.successMessage.isNotEmpty) {
                           // ✅ 추가 후 WorkRoom 목록 새로고침
-                          final listController = Get.find<WorkRoomListController>();
-                          listController.fetchWorkRooms();
+                          final listController = Get.find<WorkRoomController>();
+                          listController.fetchWorkRoomWithParticipantsByWorkRoomId(userId!);
 
                           _showSuccessSnackbar(workRoomController.successMessage.value);
                           Navigator.pop(context);

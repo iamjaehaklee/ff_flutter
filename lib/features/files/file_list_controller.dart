@@ -1,9 +1,11 @@
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/features/files/data/file_model.dart';
 import 'package:legalfactfinder2025/features/files/data/file_data_repository.dart';
+import 'package:legalfactfinder2025/features/files/data/file_repository.dart';
 
 class FileListController extends GetxController {
-  final FileDataRepository repository = FileDataRepository();
+  final FileDataRepository fileDataRepository = FileDataRepository();
+  final FileRepository fileRepository = FileRepository();
 
   var files = <FileData>[].obs;
   var isLoading = false.obs;
@@ -18,7 +20,7 @@ class FileListController extends GetxController {
     errorMessage.value = '';
 
     try {
-      files.value = await repository.fetchFiles(workRoomId);
+      files.value = await fileDataRepository.fetchFiles(workRoomId);
       print("✅ [FileListController] Successfully fetched ${files.length} files for WorkRoom '$workRoomId'");
     } catch (e, stacktrace) {
       errorMessage.value = 'Failed to load files: ${e.toString()}';
@@ -40,9 +42,9 @@ class FileListController extends GetxController {
     isLoading.value = true;
 
     try {
-      await repository.uploadFile(
+      await fileRepository.uploadFile(
         path: path,
-        fileName: fileName,
+        timeStampedFileName: fileName,
         description: description,
         workRoomId: workRoomId,
         uploaderId: uploaderId,
@@ -70,7 +72,7 @@ class FileListController extends GetxController {
     isLoading.value = true;
 
     try {
-      await repository.downloadFile(fileName, savePath);
+      await fileDataRepository.downloadFile(fileName, savePath);
       print("✅ [FileListController] File '$fileName' downloaded successfully to '$savePath'");
     } catch (e, stacktrace) {
       errorMessage.value = 'Failed to download file: ${e.toString()}';
