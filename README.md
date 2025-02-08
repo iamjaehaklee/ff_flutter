@@ -29,3 +29,5 @@ samples, guidance on mobile development, and a full API reference.
    2-2. edge function 을 호출해서 chat_message 를 추가하고,
    2-3. 트리거가  put_file_data 라는 edge function 을 호출해서 files 테이블에 uploader_id , chat_message_id 를 포함한 값들을 입력하고,
    2-4. 이 경우에는 files 테이블에 chat_message_id 가 존재한다는 이유로, 위의 1-3에서 말한 트리거는 작동하지 않음. 
+
+git push -u origin main     

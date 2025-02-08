@@ -45,7 +45,7 @@ class FileRepository {
 
   /// Supabase Storage에 파일을 업로드합니다.
   /// [path]는 업로드할 경로, [timeStampedFileName]은 업로드 시 사용할 파일명, [description]은 설명, [workRoomId]와 [uploaderId]는 메타데이터입니다.
-  Future<String> uploadFile({
+  Future<String> uploadFileToStorage({
     required String path,
     required String timeStampedFileName,
     required String description,

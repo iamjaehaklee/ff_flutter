@@ -79,7 +79,7 @@ class FileActionMenu extends StatelessWidget {
                 final newName = textController.text.trim();
                 if (newName.isNotEmpty) {
                   // Call controller to rename the file
-                  controller.fetchFiles(file.workRoomId); // Refresh the file list
+                  controller.fetchFileDataList(file.workRoomId); // Refresh the file list
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Renamed to $newName')),
@@ -111,7 +111,7 @@ class FileActionMenu extends StatelessWidget {
             TextButton(
               onPressed: () {
                 // Call controller to delete the file
-                controller.files.remove(file); // Remove locally
+                controller.fileDataList.remove(file); // Remove locally
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${file.fileName} deleted')),

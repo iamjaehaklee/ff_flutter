@@ -139,7 +139,7 @@ class MessageBubbleContent extends StatelessWidget {
                       },
                     ),
                   )
-                else if (message.messageType == 'file')
+                else if (message.messageType == 'file'||message.messageType == '_file') // file 은 채팅첨부파일, _file 은 바로업로드한파일
                 // 파일 메시지: 파일 아이콘과 파일 이름 표시, 탭 시 FilePage 이동
                   GestureDetector(
                     onTap: () {

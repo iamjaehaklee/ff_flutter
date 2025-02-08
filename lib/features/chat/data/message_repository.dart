@@ -146,7 +146,7 @@ class MessageRepository {
         final timestampedFileName = generateTimestampedFileName(originalFileName);
         print("[MessageRepository] sendMessage: Uploading file: $timestampedFileName with extension: $extension");
 
-        String storageKey = await fileRepository.uploadFile(
+        String storageKey = await fileRepository.uploadFileToStorage(
           path: file.path,
           timeStampedFileName: timestampedFileName,
           workRoomId: workRoomId,
@@ -168,7 +168,7 @@ class MessageRepository {
           final thumbnailStorageKey = '$workRoomId/$thumbnailFileName';
           print("[MessageRepository] sendMessage: Uploading thumbnail: $thumbnailFileName");
 
-          await fileRepository.uploadFile(
+          await fileRepository.uploadFileToStorage(
             path: thumbnailFile.path,
             timeStampedFileName: thumbnailFileName,
             workRoomId: workRoomId,

@@ -15,7 +15,10 @@ import 'package:legalfactfinder2025/features/chat/thread_message_controller.dart
 import 'package:legalfactfinder2025/features/document_annotation/annotation_controller.dart';
 import 'package:legalfactfinder2025/features/document_annotation/data/annotation_repository.dart';
 import 'package:legalfactfinder2025/features/files/data/file_repository.dart';
+import 'package:legalfactfinder2025/features/files/data/folders_repository.dart';
+import 'package:legalfactfinder2025/features/files/file_list_controller.dart';
 import 'package:legalfactfinder2025/features/files/file_view_controller.dart';
+import 'package:legalfactfinder2025/features/files/folders_controller.dart';
 import 'package:legalfactfinder2025/features/friend/friend_list_controller.dart';
 import 'package:legalfactfinder2025/features/notification/data/notification_repository.dart';
 import 'package:legalfactfinder2025/features/notification/presentation/notification_list_controller.dart';
@@ -44,6 +47,9 @@ void main() async {
 
   await initSupabase(); // Supabase 초기화
 
+  Get.put(FoldersController());
+  Get.put(FileListController());
+
 
   Get.put(UsersController(
     UsersRepository(
@@ -51,7 +57,6 @@ void main() async {
       jwtToken: jwtToken,
     ),
   ));
-
 
   Get.put(WorkRoomLatestMessagesController(
     WorkRoomLatestMessagesRepository(
@@ -79,9 +84,7 @@ void main() async {
   final workRoomRepository = WorkRoomRepository();
   Get.put(WorkRoomController(workRoomRepository)); // WorkRoomController 등록
 
-
   Get.put(WorkRoomListController()); // WorkRoomController 등록
-
 
   // WorkRoomRepository 및 Controller 초기화
   Get.put(FriendListController()); // WorkRoomController 등록
