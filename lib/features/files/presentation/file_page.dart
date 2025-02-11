@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:legalfactfinder2025/constants.dart';
 import 'package:legalfactfinder2025/features/files/presentation/file_annotation_threads_screen.dart';
+import 'package:legalfactfinder2025/features/files/presentation/file_info_screen.dart';
 import 'package:legalfactfinder2025/features/files/presentation/file_view_layout.dart';
 import 'package:legalfactfinder2025/features/files/presentation/pdf_file_view_screen.dart';
 
@@ -18,7 +20,7 @@ class FilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: GestureDetector(
@@ -52,8 +54,10 @@ class FilePage extends StatelessWidget {
               labelColor: Colors.blue,
               unselectedLabelColor: Colors.grey,
               tabs: const [
-                Tab(icon: Icon(Icons.file_present, size: 20)),
-                Tab(icon: Icon(Icons.comment, size: 20)),
+                Tab(icon: Icon(Icons.file_present, size: ICON_SIZE_AT_APPBAR)),
+                Tab(icon: Icon(Icons.comment, size: ICON_SIZE_AT_APPBAR)),
+                Tab(icon: Icon(Icons.info, size: ICON_SIZE_AT_APPBAR)),
+
               ],
             ),
           ),
@@ -70,6 +74,7 @@ class FilePage extends StatelessWidget {
               fileName: fileName,
               parentFileStorageKey: storageKey,
             ),
+            FileInfoScreen()
           ],
         ),
       ),

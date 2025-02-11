@@ -32,6 +32,16 @@ import 'package:legalfactfinder2025/features/work_room/work_room_list_controller
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:opencv_dart/opencv_dart.dart' as cv4;
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// FCM 백그라운드 메시지 핸들러 (앱이 백그라운드/터미네이티드 상태일 때 호출됨)
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+  // 여기에 추가적인 메시지 처리 로직(예: 로컬 알림 표시)을 넣을 수 있습니다.
+}
+
 Future<void> initSupabase() async {
   await Supabase.initialize(
     url: baseUrl, // constants.dart에서 가져온 baseUrl
@@ -46,6 +56,31 @@ void main() async {
   print("OpenCV version: ${cv4.openCvVersion()}");
 
   await initSupabase(); // Supabase 초기화
+
+  // Firebase 초기화
+  await Firebase.initializeApp();
+
+  // FCM 백그라운드 핸들러 등록
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // iOS 등에서 알림 권한 요청
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // FCM 토큰 확인 (디버깅 용도)
+  String? token = await FirebaseMessaging.instance.getToken();
+  print("FCM Token: $token");
+
+  // 터미네이티드 상태에서 알림에 의해 앱이 실행된 경우 처리
+  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    print("App opened from terminated state via notification: ${initialMessage.data}");
+    // 예: initialMessage.data를 기반으로 특정 화면으로 네비게이션 처리 가능
+  }
+
 
   Get.put(FoldersController());
   Get.put(FileListController());
@@ -138,8 +173,33 @@ void main() async {
   });
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final FirebaseMessaging _messaging;
+
+  @override
+  void initState() {
+    super.initState();
+    _messaging = FirebaseMessaging.instance;
+
+    // foreground 상태에서 알림 수신 시 처리
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("Received a foreground message: ${message.notification?.title}");
+      // 필요에 따라 로컬 알림으로 표시하거나, UI 업데이트 등의 처리를 추가하세요.
+    });
+
+    // 앱이 백그라운드 상태였다가 알림 클릭으로 열렸을 때 처리
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print("Notification caused app to open: ${message.data}");
+      // message.data에 따라 특정 화면으로 네비게이션할 수 있습니다.
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,11 +207,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Legal FactFinder',
       theme: AppTheme.themeData,
-      // home: MainLayout(), // BottomNavigationBar를 포함한 메인 화면
       initialRoute: initialRoute,
-      // 로그인 화면을 기본 화면으로 설정
       getPages: AppRoutes.routes,
-      // AppRoutes의 라우트 리스트 연결
       unknownRoute: GetPage(
         name: '/not_found',
         page: () => Scaffold(

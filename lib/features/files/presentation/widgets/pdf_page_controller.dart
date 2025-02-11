@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 class PdfPageController extends StatelessWidget {
   final int currentPage;
   final int totalPages;
-  final PDFViewController pdfViewController;
+  final PdfViewerController pdfViewController;
 
   const PdfPageController({
     Key? key,
@@ -16,14 +16,15 @@ class PdfPageController extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.7),
-      height: 50,
+      color: Colors.black.withOpacity(0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => pdfViewController.setPage(currentPage - 1),
+            onPressed: () => pdfViewController.goToPage(
+                pageNumber: (currentPage - 1).clamp(0, totalPages - 1)),
           ),
           Text(
             "${currentPage + 1} / $totalPages",
@@ -31,7 +32,8 @@ class PdfPageController extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.arrow_forward, color: Colors.white),
-            onPressed: () => pdfViewController.setPage(currentPage + 1),
+            onPressed: () => pdfViewController.goToPage(
+                pageNumber: (currentPage + 1).clamp(0, totalPages - 1)),
           ),
         ],
       ),

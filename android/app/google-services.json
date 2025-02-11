@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499074118231",
+    "project_id": "legalfactfinder2025",
+    "storage_bucket": "legalfactfinder2025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499074118231:android:56fc6c5a4026ff69e6e912",
+        "android_client_info": {
+          "package_name": "com.legalfactfinder.legalfactfinder2025"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEpTam2fbXq-BSEt0TplaOy_V0moX_9Fs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

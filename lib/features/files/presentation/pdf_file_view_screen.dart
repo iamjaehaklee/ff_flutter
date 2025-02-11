@@ -1,21 +1,20 @@
-import 'dart:io';
+// File: lib/screens/pdf_file_view_screen.dart
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:legalfactfinder2025/features/document_annotation/annotation_controller.dart';
+import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/annotation_mode_controls.dart';
+import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/annotation_mode_overlay.dart';
+import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/input_annotation_bottom_sheet.dart';
+import 'package:legalfactfinder2025/features/document_annotation/services/pdf_image_capture_service.dart';
+import 'package:legalfactfinder2025/features/document_annotation/utils/pdf_file_view_state_helpers.dart';
+import 'package:legalfactfinder2025/features/files/file_view_controller.dart';
+import 'package:legalfactfinder2025/features/files/presentation/widgets/pdf_navigation_controls.dart';
+import 'package:legalfactfinder2025/features/files/presentation/widgets/pdf_viewer_wrapper.dart';
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:get/get.dart';
-import 'package:legalfactfinder2025/core/utils/opencv_utils.dart';
-import 'package:legalfactfinder2025/core/utils/pdf_utils.dart';
-import 'package:legalfactfinder2025/features/document_annotation/annotation_controller.dart';
-import 'package:legalfactfinder2025/features/document_annotation/data/document_annotation_model.dart';
-import 'package:legalfactfinder2025/features/document_annotation/presentation/annotation_page.dart';
-import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/annotation_overlay.dart';
-import 'package:legalfactfinder2025/features/files/file_view_controller.dart';
-import 'package:legalfactfinder2025/features/files/presentation/widgets/draggable_page_controller.dart';
-import 'package:legalfactfinder2025/features/files/presentation/widgets/pdf_page_controller.dart';
-import 'package:opencv_dart/opencv_dart.dart' as cv;
-import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/input_annotation_bottom_sheet.dart';
-import 'package:path_provider/path_provider.dart';
+
+import 'package:pdfrx/pdfrx.dart';
 
 class PDFFileViewScreen extends StatefulWidget {
   final String workRoomId;
@@ -28,7 +27,7 @@ class PDFFileViewScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _PDFFileViewScreenState createState() => _PDFFileViewScreenState();
+  State<PDFFileViewScreen> createState() => _PDFFileViewScreenState();
 }
 
 class _PDFFileViewScreenState extends State<PDFFileViewScreen>
@@ -36,25 +35,34 @@ class _PDFFileViewScreenState extends State<PDFFileViewScreen>
   @override
   bool get wantKeepAlive => true;
 
-  final GlobalKey _pdfViewKey = GlobalKey();
-  PDFViewController? _pdfViewController;
+  final AnnotationController _annotationController = Get.find<AnnotationController>();
+  final FileViewController _fileViewController = Get.find<FileViewController>();
+
+  // Global keys
+  final GlobalKey pdfViewKey = GlobalKey();
+  final GlobalKey captureBoundaryKey = GlobalKey();
+  // 🔵 _annotationBoundaryKey: annotation 모드에서 캡쳐된 페이지 이미지 위젯 크기 측정을 위한 GlobalKey
+  final GlobalKey annotationBoundaryKey = GlobalKey();
+
+  late final PdfViewerController _pdfViewerController;
+  late final PdfTextSearcher _pdfTextSearcher;
+
   int _currentPage = 0;
   int _totalPages = 0;
   bool _isAnnotationMode = false;
-  List<Rect> _detectedParagraphs = [];
-  Set<int> _selectedParagraphs = {};
-  ui.Image? _currentPageImage;
-  int _targetPage = 0; // 🟡 추가: 이동할 대상 페이지 번호
-
-  final AnnotationController _annotationController =
-      Get.find<AnnotationController>();
-  final FileViewController _fileViewController = Get.find<FileViewController>();
+  Rect _selectionArea = Rect.zero;
+  Uint8List? _capturedImage;
+  // 🔵 _capturedImageSize: 캡쳐된 페이지 이미지의 원본 크기 (ui.Image 기준)
+  ui.Size? _capturedImageSize;
 
   @override
   void initState() {
     super.initState();
-    print("OpenCV version: ${cv.openCvVersion()}");
-
+    _pdfViewerController = PdfViewerController();
+    _pdfTextSearcher = PdfTextSearcher(_pdfViewerController)
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
     _fileViewController.loadFile(
       'work_room_files',
       '${widget.workRoomId}/${widget.fileName}',
@@ -63,248 +71,138 @@ class _PDFFileViewScreenState extends State<PDFFileViewScreen>
     _annotationController.fetchAnnotations(widget.fileName);
   }
 
-  /// **Toggle Annotation Mode & Detect Paragraphs**
-  void _toggleAnnotationMode() async {
-    debugPrint("[DEBUG] Toggle Annotation Mode: Start");
+  @override
+  void dispose() {
+    _pdfTextSearcher.removeListener(() {});
+    _pdfTextSearcher.dispose();
+    super.dispose();
+  }
 
+
+  // 🟢 _toggleAnnotationMode(): annotation mode 진입/종료 시 상태 및 캡쳐 이미지 초기화 처리
+  Future<void> _toggleAnnotationMode() async {
     setState(() {
-      debugPrint(
-          "[DEBUG] Updating state: _isAnnotationMode = ${!_isAnnotationMode}");
       _isAnnotationMode = !_isAnnotationMode;
-      _detectedParagraphs.clear();
-      _selectedParagraphs.clear();
-      debugPrint("[DEBUG] Cleared _detectedParagraphs and _selectedParagraphs");
+      if (_isAnnotationMode) {
+        _selectionArea = initializeSelectionArea(context);
+      } else {
+        _selectionArea = Rect.zero;
+        _capturedImage = null;
+        _capturedImageSize = null;
+      }
     });
-
     if (_isAnnotationMode) {
-      debugPrint(
-          "[DEBUG] Annotation mode is ON. Proceeding with image processing...");
+      final result = await PdfImageCaptureService.captureCurrentPageImage(
+          _fileViewController.file.value!.path, _currentPage);
+      if (result != null) {
+        setState(() {
+          _capturedImage = result.image;
+          _capturedImageSize = result.size;
+        });
+      }
+    }
+  } // End of _toggleAnnotationMode() 🟢
 
-      final file = _fileViewController.file.value;
-      if (file == null) {
-        debugPrint("[ERROR] File is null. Aborting.");
+  // 🟣 _captureSelectedArea(): 실제 이미지의 letterboxed 영역을 고려하여 선택 영역 좌표 변환 후 크롭
+  Future<void> _captureSelectedArea() async {
+    try {
+      if (_selectionArea.isEmpty) {
+        debugPrint('Error: No selection area defined.');
         return;
       }
-
-      debugPrint("[DEBUG] Converting PDF page to image...");
-      ui.Image? pageImage =
-          await PdfUtils.convertPdfPageToImage(file.path, _currentPage + 1);
-      if (pageImage == null) {
-        debugPrint("[ERROR] Failed to convert PDF page to image. Aborting.");
+      if (_capturedImage == null || _capturedImageSize == null) {
+        debugPrint('🟣 Error: Captured image is not available.');
         return;
       }
-
-      debugPrint("[DEBUG] PDF page successfully converted to image.");
-      setState(() {
-        _currentPageImage = pageImage;
-        debugPrint(
-            "[DEBUG] Updated _currentPageImage with the converted image.");
-      });
-
-      // // ✅ 임시 디렉토리에 파일 저장
-      //
-      // try {
-      //   final directory = await getTemporaryDirectory();
-      //   final tempFilePath = "${directory.path}/after_convertPdfPageToImage.png";
-      //   final tempFile = File(tempFilePath);
-      //   await tempFile.writeAsBytes(image.toByteData(), mode: FileMode.write, flush: true);
-      //   debugPrint(
-      //       "[DEBUG] Successfully saved the file to the temporary directory: $tempFilePath");
-      // } on Exception catch (e) {
-      //   // TODO
-      //   debugPrint(
-      //       "[DEBUG] Failed to save the file to the temporary directory: $e.");
-      // }
-
-      debugPrint("[DEBUG] Detecting paragraphs using OpenCV...");
-      List<Rect> paragraphs = await detectParagraphs(pageImage);
-      debugPrint(
-          "[DEBUG] Paragraph detection completed. Found ${paragraphs.length} paragraphs.");
-
-      setState(() {
-        _detectedParagraphs = paragraphs;
-        debugPrint(
-            "[DEBUG] Updated _detectedParagraphs with detected paragraphs.");
-      });
-    } else {
-      debugPrint("[DEBUG] Annotation mode is OFF. No further action required.");
+      // obtain container size from annotationBoundaryKey
+      final RenderBox box = annotationBoundaryKey.currentContext!.findRenderObject() as RenderBox;
+      final containerSize = box.size;
+      final Uint8List? croppedBytes = await captureSelectedArea(
+        selectionArea: _selectionArea,
+        capturedImage: _capturedImage!,
+        capturedImageSize: ui.Size(_capturedImageSize!.width, _capturedImageSize!.height),
+        containerSize: containerSize,
+      );
+      if (croppedBytes != null) {
+        debugPrint("🟣 Cropped image captured successfully");
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => InputAnnotationBottomSheet(
+            image: croppedBytes,
+            onSave: (text) => _toggleAnnotationMode(),
+          ),
+        );
+      } else {
+        debugPrint("🟣 Error: Failed to convert cropped image to byte data.");
+      }
+    } catch (e, stackTrace) {
+      debugPrint("🟣 Error capturing selected area: $e");
+      debugPrint("$stackTrace");
     }
-
-    debugPrint("[DEBUG] Toggle Annotation Mode: End");
-  }
-
-  /// **Convert OpenCV Rect to Flutter Rect**
-  ui.Rect _toFlutterRect(cv.Rect cvRect) {
-    return ui.Rect.fromLTWH(
-      cvRect.x.toDouble(),
-      cvRect.y.toDouble(),
-      cvRect.width.toDouble(),
-      cvRect.height.toDouble(),
-    );
-  }
-
-  /// **Detect Paragraphs using OpenCV**
-  /// **Detect Paragraphs using OpenCV**
-
-
-  /// **Move to Specific Page**
-  void _moveToPage(int page) {
-    if (_pdfViewController != null && page >= 0 && page < _totalPages) {
-      _pdfViewController!.setPage(page);
-    }
-  }
+  } // End of _captureSelectedArea() 🟣
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
     return Obx(() {
       if (_fileViewController.isLoading.value) {
         return const Center(child: CircularProgressIndicator());
       }
-
       if (_fileViewController.errorMessage.isNotEmpty) {
         return Center(child: Text(_fileViewController.errorMessage.value));
       }
-
       if (_fileViewController.file.value == null) {
         return const Center(child: Text("File not found."));
       }
-
-      final file = _fileViewController.file.value!;
       return Stack(
         children: [
-          // Container(
-          //   child: Row(
-          //     children: [
-          //       Expanded(child: const Text("Annotation")),
-          //       // ✅ "Annotation" 텍스트 추가
-          //       Switch(
-          //         // ✅ Toggle Switch 추가
-          //         value: _isAnnotationMode,
-          //         onChanged: _toggleAnnotationMode,
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          PDFView(
-            key: _pdfViewKey,
-            filePath: file.path,
-            swipeHorizontal: false,
-            enableSwipe: false,
-            pageFling: false,
-            pageSnap: false,
-            onRender: (pages) => setState(() => _totalPages = pages ?? 0),
-            onPageChanged: (page, _) =>
-                setState(() => _currentPage = page ?? 0),
-            onViewCreated: (controller) =>
-                setState(() => _pdfViewController = controller),
+          PdfViewerWrapper(
+            captureBoundaryKey: captureBoundaryKey,
+            pdfViewKey: pdfViewKey,
+            filePath: _fileViewController.file.value!.path,
+            pdfViewerController: _pdfViewerController,
+            pdfTextSearcher: _pdfTextSearcher,
+            onViewerReady: (totalPages) {
+              setState(() {
+                _totalPages = totalPages;
+              });
+              debugPrint("PDFFileViewScreen: 총 페이지 수 $_totalPages 로드 완료");
+            },
+            onPageChanged: (page) {
+              setState(() {
+                _currentPage = page ?? 0;
+              });
+            },
           ),
-          _buildDraggablePageController(),
           if (_isAnnotationMode)
-            ..._detectedParagraphs.asMap().entries.map(
-                  (entry) => Positioned.fromRect(
-                    rect: entry.value,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: _selectedParagraphs.contains(entry.key)
-                              ? Colors.blue
-                              : Colors.red,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: _isAnnotationMode
-                ? Column(
-                    children: [
-                      FloatingActionButton(
-                        heroTag: "Cancel",
-                        backgroundColor: Colors.red,
-                        onPressed: _toggleAnnotationMode,
-                        child: const Icon(Icons.close, color: Colors.white),
-                      ),
-                      const SizedBox(height: 8),
-                      FloatingActionButton(
-                        heroTag: "Confirm",
-                        backgroundColor: Colors.green,
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (context) {
-                              return InputAnnotationBottomSheet(
-                                onSave: (text) {
-                                  // Handle saving annotation
-                                  _toggleAnnotationMode();
-                                },
-                              );
-                            },
-                          );
-                        },
-                        child: const Icon(Icons.check, color: Colors.white),
-                      ),
-                    ],
-                  )
-                : FloatingActionButton(
-                    onPressed: _toggleAnnotationMode,
-                    backgroundColor: Colors.blue,
-                    child: const Icon(Icons.add_comment, color: Colors.white),
-                  ),
-          ),
-          if (_pdfViewController != null)
-            Positioned(
-              bottom: 0, // Adjust spacing
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom / 2,
-                ),
-                child: PdfPageController(
-                  currentPage: _currentPage,
-                  totalPages: _totalPages,
-                  pdfViewController: _pdfViewController!,
-                ),
-              ),
+            AnnotationModeOverlay(
+              key: annotationBoundaryKey,
+              capturedImage: _capturedImage,
+            ),
+          if (_isAnnotationMode)
+            AnnotationModeControls(
+              selectionArea: _selectionArea,
+              onUpdate: (newRect) {
+                setState(() {
+                  _selectionArea = newRect;
+                });
+              },
+              onIconTap: _toggleAnnotationMode,
+              onWriteComment: _captureSelectedArea,
+            ),
+          if (!_isAnnotationMode)
+            PdfNavigationControls(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onToggleAnnotationMode: _toggleAnnotationMode,
+              pdfViewerController: _pdfViewerController,
+              pdfTextSearcher: _pdfTextSearcher,
             ),
         ],
       );
     });
   }
 
-  Widget _buildDraggablePageController() {
-    if (_pdfViewController == null || _totalPages <= 1)
-      return SizedBox.shrink();
-
-    double availableHeight = MediaQuery.of(context).size.height -
-        kToolbarHeight // AppBar 높이 제외
-        -
-        kBottomNavigationBarHeight // 하단 페이지 컨트롤러 제외
-        -
-        MediaQuery.of(context).padding.top // 상단 상태 바 제외
-        -
-        MediaQuery.of(context).padding.bottom / 2; // 하단 SafeArea 고려
-    double bottomLimit =
-        kBottomNavigationBarHeight + 16; // ✅ PdfPageController보다 내려가지 않도록 제한
-
-    return Positioned(
-      right: 16,
-      child: DraggablePageController(
-        pdfViewController: _pdfViewController!,
-        currentPage: _currentPage,
-        totalPages: _totalPages,
-        availableHeight: availableHeight,
-        bottomLimit: bottomLimit,
-        // ✅ 하단 제한 추가
-        onUpdate: (page) => setState(() => _targetPage = page),
-        onRelease: (page) => _moveToPage(page),
-      ),
-    );
-  }
+// End of PDFFileViewScreen class 🟢
 }

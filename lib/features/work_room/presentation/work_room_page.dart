@@ -69,14 +69,17 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
         errorMessage = null;
       });
       // 워크룸 정보만 로드합니다. (초대 요청 데이터는 여기서 로드하지 않음)
-       await workRoomController.fetchWorkRoomWithParticipantsByWorkRoomId(workRoomId!);
+      await workRoomController
+          .fetchWorkRoomWithParticipantsByWorkRoomId(workRoomId!);
       setState(() {
-        workRoomWithParticipants = workRoomController.workRoomWithParticipants.value;
+        workRoomWithParticipants =
+            workRoomController.workRoomWithParticipants.value;
         // pendingRequests는 빈 리스트를 전달합니다.
         pendingRequests = [];
         isLoading = false;
       });
-      print("[WorkRoomPage] Fetched workRoomWithParticipants: ${workRoomWithParticipants!.toJson()}");
+      print(
+          "[WorkRoomPage] Fetched workRoomWithParticipants: ${workRoomWithParticipants!.toJson()}");
     } catch (e) {
       setState(() {
         errorMessage = e.toString();
@@ -87,7 +90,7 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
   }
 
   @override
-   Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     if (userId == null || workRoomId == null) {
       return WorkRoomLoadingError(
         isLoading: false,
@@ -122,7 +125,7 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
     // );
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: Colors.white,
@@ -133,18 +136,22 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
           // AppBar의 title만 Obx로 감싸서 workRoomController의 workRoom 값이 변경되면 제목이 자동 갱신됨
           title: Obx(() {
             if (workRoomController.isLoading.value) {
-              print("[WorkRoomPage] workRoomController.isLoading is true, displaying 'Loading Work Room...'");
+              print(
+                  "[WorkRoomPage] workRoomController.isLoading is true, displaying 'Loading Work Room...'");
               return const Text("Loading Work Room...");
             }
             if (workRoomController.errorMessage.isNotEmpty) {
-              print("[WorkRoomPage] workRoomController.errorMessage is not empty: ${workRoomController.errorMessage.value}, displaying 'Error'");
+              print(
+                  "[WorkRoomPage] workRoomController.errorMessage is not empty: ${workRoomController.errorMessage.value}, displaying 'Error'");
               return const Text("Error");
             }
             if (workRoomController.workRoomWithParticipants.value == null) {
-              print("[WorkRoomPage] workRoomWithParticipants is null, displaying 'Work Room'");
+              print(
+                  "[WorkRoomPage] workRoomWithParticipants is null, displaying 'Work Room'");
               return const Text("Work Room");
             }
-            final updatedTitle = workRoomController.workRoomWithParticipants.value!.workRoom.title;
+            final updatedTitle = workRoomController
+                .workRoomWithParticipants.value!.workRoom.title;
             print("[WorkRoomPage] Updated AppBar title: $updatedTitle");
             return Text(updatedTitle);
           }),
@@ -163,8 +170,8 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
             GestureDetector(
               onTap: () => _showBottomSheet(context),
               child: const Padding(
-                padding: EdgeInsets.only(
-                    right: 24.0, left: 8, top: 8, bottom: 8),
+                padding:
+                    EdgeInsets.only(right: 24.0, left: 8, top: 8, bottom: 8),
                 child: Icon(
                   Icons.add_box,
                   size: ICON_SIZE_AT_APPBAR,
@@ -172,7 +179,6 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
                 ),
               ),
             ),
-
           ],
           bottom: const TabBar(
             labelColor: Colors.lightBlue,
@@ -181,6 +187,8 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
             tabs: [
               Tab(icon: Icon(Icons.chat, size: ICON_SIZE_AT_APPBAR)),
               Tab(icon: Icon(Icons.attach_file, size: ICON_SIZE_AT_APPBAR)),
+              Tab(icon: Icon(Icons.data_object, size: ICON_SIZE_AT_APPBAR)),
+
               Tab(icon: Icon(Icons.calendar_today, size: ICON_SIZE_AT_APPBAR)),
               Tab(icon: Icon(Icons.info, size: ICON_SIZE_AT_APPBAR)),
               Tab(icon: Icon(Icons.lock, size: ICON_SIZE_AT_APPBAR)),
@@ -193,7 +201,8 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
           pendingRequests: pendingRequests,
           isRoundedScreen: isRoundedScreen,
           participantsMap: {
-            for (Participant participant in workRoomWithParticipants!.participants)
+            for (Participant participant
+                in workRoomWithParticipants!.participants)
               participant.userId: participant.username,
           },
           workRoomId: workRoomId!,
@@ -202,6 +211,7 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
       ),
     );
   } // end of build end of build
+
   void _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -218,8 +228,7 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
                 title: const Text('친구 초대'),
                 onTap: () {
                   Navigator.pop(context);
-                  Get.to(
-                          () => WorkRoomRequestPage(workRoomId: workRoomId!));
+                  Get.to(() => WorkRoomRequestPage(workRoomId: workRoomId!));
                 },
               ),
               ListTile(
@@ -236,6 +245,4 @@ class _WorkRoomPageState extends State<WorkRoomPage> {
       },
     );
   }
-  }
-
-
+}

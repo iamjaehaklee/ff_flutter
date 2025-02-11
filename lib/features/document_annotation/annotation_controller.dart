@@ -12,6 +12,20 @@ class AnnotationController extends GetxController {
   RxBool isLoading = false.obs;
   RxString errorMessage = ''.obs;
 
+
+  /// Getter: 현재 annotations 리스트의 첫 번째 항목을 DocumentAnnotationModel로 변환하여 반환
+  DocumentAnnotationModel? get currentAnnotation {
+    if (annotations.isNotEmpty) {
+      try {
+        return DocumentAnnotationModel.fromJson(annotations.first);
+      } catch (e) {
+        print("Error parsing annotation: $e");
+        return null;
+      }
+    }
+    return null;
+  }
+
   Future<void> fetchAnnotations(String parentFileStorageKey) async {
     try {
       isLoading.value = true;

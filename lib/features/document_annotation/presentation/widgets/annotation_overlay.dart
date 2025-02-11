@@ -1,17 +1,17 @@
+// lib/features/document_annotation/presentation/widgets/annotation_overlay.dart
 import 'package:flutter/material.dart';
 import 'package:legalfactfinder2025/features/document_annotation/data/document_annotation_model.dart';
 
 class AnnotationOverlay extends StatefulWidget {
-  final DocumentAnnotationModel annotation;
-  final Rect selectedRect;
+   final Rect selectedRect;
   final Function(Rect) onUpdate;
   final VoidCallback onIconTap;
   final bool isEditable;
-
+  final DocumentAnnotationModel? annotation;
   const AnnotationOverlay({
     Key? key,
-    required this.annotation,
-    required this.selectedRect,
+    this.annotation,
+     required this.selectedRect,
     required this.onUpdate,
     required this.onIconTap,
     this.isEditable = false,
@@ -65,18 +65,20 @@ class _AnnotationOverlayState extends State<AnnotationOverlay> {
   }
 
   Widget _buildCornerMarker(Alignment alignment) {
+    // 원형 크기를. 28×28 변경(원래 14×14에서 2배)
+    // 따라서, 중앙 정렬을 위해 offset을 14 (28/2) 만큼 빼줍니다.
     return Positioned(
       left: alignment == Alignment.topLeft || alignment == Alignment.bottomLeft
-          ? _rect.left - 6
-          : _rect.right - 6,
+          ? _rect.left - 14
+          : _rect.right - 14,
       top: alignment == Alignment.topLeft || alignment == Alignment.topRight
-          ? _rect.top - 6
-          : _rect.bottom - 6,
+          ? _rect.top - 14
+          : _rect.bottom - 14,
       child: GestureDetector(
         onPanUpdate: (details) => _updateCorner(details.delta, alignment),
         child: Container(
-          width: 12,
-          height: 12,
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: Colors.red, width: 2),
@@ -95,15 +97,17 @@ class _AnnotationOverlayState extends State<AnnotationOverlay> {
           rect: _rect,
           child: GestureDetector(
             onPanUpdate: widget.isEditable
-                ? (details) => setState(() {
-              _rect = _rect.shift(details.delta);
+                ? (details) {
+              setState(() {
+                _rect = _rect.shift(details.delta);
+              });
               widget.onUpdate(_rect);
-            })
+            }
                 : null,
             child: Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.red, width: 2),
-                color: Colors.red.withOpacity(0.2),
+                color: Colors.transparent,
               ),
             ),
           ),

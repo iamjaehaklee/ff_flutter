@@ -38,7 +38,6 @@ dependencies:
   table_calendar: ^3.0.8
   http: ^1.0.0 # http 패키지 추가
   image_picker: ^1.1.2
-  flutter_pdfview: ^1.4.0
   image: ^4.3.0
   speech_to_text: ^7.0.0
   google_mlkit_text_recognition: ^0.14.0
@@ -53,10 +52,11 @@ dependencies:
   signature: ^5.3.0
   path_provider: ^2.1.5
   uuid: ^4.5.1
-  syncfusion_flutter_pdfviewer: ^28.2.3
   opencv_dart: ^1.4.0
   pdfrx: ^1.0.101
   intl: ^0.19.0
+  firebase_core: ^3.11.0
+  firebase_messaging: ^15.2.2
 
 dev_dependencies:
   flutter_test:

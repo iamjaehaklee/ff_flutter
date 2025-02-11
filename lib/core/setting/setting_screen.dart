@@ -68,18 +68,18 @@ class SettingScreen extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          OutlinedButton(
-            onPressed: () {
-              Get.to(() => TestSyncfusionPdfFileViewPage());
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.green,
-              side: BorderSide(color: Colors.green, width: 1.5),
-              padding: EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            ),
-            child: Center(child: Text("Open PDF Viewer")),
-          )
+          // OutlinedButton(
+          //   onPressed: () {
+          //     Get.to(() => TestSyncfusionPdfFileViewPage());
+          //   },
+          //   style: OutlinedButton.styleFrom(
+          //     foregroundColor: Colors.green,
+          //     side: BorderSide(color: Colors.green, width: 1.5),
+          //     padding: EdgeInsets.symmetric(vertical: 14),
+          //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          //   ),
+          //   child: Center(child: Text("Open PDF Viewer")),
+          // )
         ],
       ),
     );

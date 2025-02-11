@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 class DraggablePageController extends StatefulWidget {
   final int currentPage;
   final int totalPages;
   final double availableHeight;
-  final double bottomLimit; // ✅ 하단 제한 추가
+  final double bottomLimit;
   final Function(int) onUpdate;
   final Function(int) onRelease;
-  final PDFViewController pdfViewController;
+  final PdfViewerController pdfViewController;
 
   const DraggablePageController({
     Key? key,
     required this.currentPage,
     required this.totalPages,
     required this.availableHeight,
-    required this.bottomLimit, // ✅ 하단 제한 받음
+    required this.bottomLimit,
     required this.onUpdate,
-    required this.onRelease,    required this.pdfViewController,
-
+    required this.onRelease,
+    required this.pdfViewController,
   }) : super(key: key);
 
   @override
@@ -26,11 +26,11 @@ class DraggablePageController extends StatefulWidget {
       _DraggablePageControllerState();
 }
 
-
 class _DraggablePageControllerState extends State<DraggablePageController> {
   double _currentY = 0;
   int _displayPage = 0;
   double _startY = 0;
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +45,7 @@ class _DraggablePageControllerState extends State<DraggablePageController> {
     }
   }
 
-  void _updateControllerPosition() { // ✅ 현재 페이지에 맞게 위치 조정
+  void _updateControllerPosition() {
     setState(() {
       if (widget.totalPages > 1) {
         _currentY = (widget.availableHeight / (widget.totalPages - 1)) * widget.currentPage;
@@ -54,7 +54,7 @@ class _DraggablePageControllerState extends State<DraggablePageController> {
     });
   }
 
-  int _calculatePageFromPosition(double position) { // ✅ 컨트롤러 위치를 페이지 번호로 변환
+  int _calculatePageFromPosition(double position) {
     return ((position / widget.availableHeight) * (widget.totalPages - 1))
         .round()
         .clamp(0, widget.totalPages - 1);
@@ -67,7 +67,7 @@ class _DraggablePageControllerState extends State<DraggablePageController> {
   void _onVerticalDragUpdate(DragUpdateDetails details) {
     setState(() {
       double newPosition = _currentY + details.delta.dy;
-      newPosition = newPosition.clamp(0, widget.availableHeight - widget.bottomLimit); // ✅ 하단 제한 적용
+      newPosition = newPosition.clamp(0, widget.availableHeight - widget.bottomLimit);
       _currentY = newPosition;
       _displayPage = _calculatePageFromPosition(_currentY);
       widget.onUpdate(_displayPage);
@@ -82,7 +82,7 @@ class _DraggablePageControllerState extends State<DraggablePageController> {
   Widget build(BuildContext context) {
     return Positioned(
       right: 5,
-      top: _currentY, // ✅ 위치 동적 업데이트
+      top: _currentY,
       child: GestureDetector(
         onVerticalDragStart: _onVerticalDragStart,
         onVerticalDragUpdate: _onVerticalDragUpdate,

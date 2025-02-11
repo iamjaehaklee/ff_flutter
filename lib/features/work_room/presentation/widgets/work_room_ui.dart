@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:legalfactfinder2025/constants.dart';
 import 'package:legalfactfinder2025/features/chat/presentation/thread_list_screen.dart';
 import 'package:legalfactfinder2025/features/audio_record/presentation/audio_recorder_page.dart';
+import 'package:legalfactfinder2025/features/data_analysis/presentation/data_analysis_layout_screen.dart';
 import 'package:legalfactfinder2025/features/work_room/presentation/work_room_request_page.dart';
 import 'package:legalfactfinder2025/features/work_room/data/work_room_with_participants_model.dart';
 import 'package:legalfactfinder2025/features/work_room/data/work_room_request_model.dart';
@@ -59,6 +60,7 @@ class _WorkRoomUIState extends State<WorkRoomUI> {
                 myUserId: widget.userId),
             FilesScreen(
                 workRoomId: widget.workRoomId),
+            DataAnalysisLayoutScreen(workRoomId: widget.workRoomId),
             CalendarScreen(),
             WorkRoomDetailScreen(
                 workRoomWithParticipants: widget.workRoomWithParticipants,
