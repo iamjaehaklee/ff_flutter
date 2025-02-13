@@ -18,6 +18,7 @@ class FileDataRepository {
   Future<void> putFileData({
     required String fileName,
     required String storageKey,
+    required String storagePath,
     required String description,
     required String workRoomId,
     required String uploaderId,
@@ -27,6 +28,7 @@ class FileDataRepository {
     /*
       uploader_id,         // 파일 업로드 시 클라이언트가 전달하는 uploader_id (파일 업로드시, 메시지 첨부용 파일이 아니면 반드시 전달)
       storage_key,         // 예: "work_room_id/타임스탬프가_붙은_파일명"
+      storage_path,        // "work_room_id"까지. 즉,마지막 역슬레시는 없음
       file_name,           // 원본 파일명 (클라이언트가 전달)
       file_type,           // MIME 타입 (예: "image/jpeg", "application/pdf" 등)
       work_room_id,        // 파일이 속한 작업방 id
@@ -43,6 +45,7 @@ class FileDataRepository {
       body: jsonEncode({
         'uploader_id': uploaderId,
         'storage_key':storageKey,
+        'storage_path':storagePath,
         'file_name': fileName,
         'file_type':fileType,
          'work_room_id': workRoomId,
@@ -55,20 +58,20 @@ class FileDataRepository {
     }
   }
 
-  Future<List<FileData>> fetchFiles(String workRoomId) async {
-    final url = Uri.parse('$baseUrl/functions/v1/get_files_by_work_room_id');
+  Future<List<FileData>> fetchFilesByStoragePath(String storagePath) async {
+    final url = Uri.parse('$baseUrl/functions/v1/get_files_by_storage_path');
 
     try {
-      Logger.i("Fetching files for WorkRoom ID: $workRoomId from $url");
+      Logger.i("Fetching files for storagePath: $storagePath from $url");
 
-      // Call the Edge Function
+      // Call the Edge Function with the storage_path parameter
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
         },
-        body: jsonEncode({'work_room_id': workRoomId}),
+        body: jsonEncode({'storage_path': storagePath}),
       );
 
       Logger.s("Status Code: ${response.statusCode}");
@@ -80,36 +83,21 @@ class FileDataRepository {
 
         Logger.s("Parsed JSON: $responseData");
 
-        // Ensure the response contains the 'files' key
-        if (responseData is! Map<String, dynamic> ||
-            !responseData.containsKey('files')) {
-          throw Exception("Unexpected response format: Missing 'files' key.");
+        // Support both a plain list and a map with a "data" key
+        List<dynamic> filesList;
+        if (responseData is List) {
+          filesList = responseData;
+        } else if (responseData is Map<String, dynamic> &&
+            responseData.containsKey('data')) {
+          filesList = responseData['data'] as List<dynamic>;
+        } else {
+          throw Exception("Unexpected response format: Missing 'data' key.");
         }
 
-        final filesList = responseData['files'] as List<dynamic>;
-
-        // Map the files list to FileData objects
+        // Map the files list to FileData objects using the FileData.fromJson constructor
         return filesList.map((json) {
           Logger.d("Processing JSON object: $json");
-          return FileData(
-            id: json['id'] as String? ?? '',
-            storageKey: json['file_url'] as String? ?? '',
-            fileName: json['file_name'] as String? ?? 'Unknown File',
-            fileType: json['file_type'] as String? ?? 'unknown',
-            fileSize: json['file_size'] as int? ?? 0,
-            uploadedAt:
-                DateTime.tryParse(json['uploaded_at'] as String? ?? '') ??
-                    DateTime.now(),
-            updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ??
-                DateTime.now(),
-            workRoomId: workRoomId,
-            uploaderId: json['uploader_id'] as String? ?? '',
-            description: json['description'] as String? ?? 'No description',
-            isDeleted: json['is_deleted'] as bool? ?? false,
-            deletedAt: json['deleted_at'] != null
-                ? DateTime.tryParse(json['deleted_at'] as String)
-                : null,
-          );
+          return FileData.fromJson(json as Map<String, dynamic>);
         }).toList();
       } else {
         throw Exception("Failed to fetch files: ${response.body}");
@@ -119,6 +107,7 @@ class FileDataRepository {
       throw Exception("Error fetching files: $e");
     }
   }
+
 
 
 

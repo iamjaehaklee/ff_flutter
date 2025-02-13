@@ -1,5 +1,6 @@
 // lib/file_list_controller.dart
 import 'package:get/get.dart';
+import 'package:legalfactfinder2025/core/utils/file_utils.dart';
 import 'package:legalfactfinder2025/core/utils/formatters.dart';
 import 'package:legalfactfinder2025/features/files/data/file_model.dart';
 import 'package:legalfactfinder2025/features/files/data/file_data_repository.dart';
@@ -13,17 +14,16 @@ class FileListController extends GetxController {
   var isLoading = false.obs;
   var errorMessage = ''.obs;
 
-  // ✅ 파일 목록 가져오기 (WorkRoom 단위)
-  Future<void> fetchFileDataList(String workRoomId) async {
+  Future<void> fetchFileDataListByStoragePath(String storagePath) async {
     final startTime = DateTime.now();
-    print("🔄 [FileListController] Fetching files for WorkRoom '$workRoomId' at $startTime");
+    print("🔄 [FileListController] Fetching files for storagePath '$storagePath' at $startTime");
 
     isLoading.value = true;
     errorMessage.value = '';
 
     try {
-      fileDataList.value = await fileDataRepository.fetchFiles(workRoomId);
-      print("✅ [FileListController] Successfully fetched ${fileDataList.length} files for WorkRoom '$workRoomId'");
+      fileDataList.value = await fileDataRepository.fetchFilesByStoragePath(storagePath);
+      print("✅ [FileListController] Successfully fetched ${fileDataList.length} files for storagePath '$storagePath'");
     } catch (e, stacktrace) {
       errorMessage.value = 'Failed to load files: ${e.toString()}';
       print("❌ [FileListController] Error fetching files: $e");
@@ -35,6 +35,7 @@ class FileListController extends GetxController {
       print("⏳ [FileListController] fetchFiles completed in ${duration.inMilliseconds}ms");
     }
   }
+
 
   // ✅ 파일 업로드
   // ✅ 파일 업로드
@@ -62,6 +63,7 @@ class FileListController extends GetxController {
       await fileDataRepository.putFileData(
         fileName: timeStampedFileName,
         storageKey: storageKey,
+         storagePath: extractDirectoryPath(storageKey), //마지막의 역슬래시는 없음.
          workRoomId: workRoomId,
         uploaderId: uploaderId,
         description: description,
@@ -70,7 +72,7 @@ class FileListController extends GetxController {
 
       print("✅ [FileListController] File '$fileName' uploaded and file data inserted successfully!");
       // 파일 업로드 및 데이터 삽입 후 파일 목록 갱신
-      await fetchFileDataList(workRoomId);
+      await fetchFileDataListByStoragePath(workRoomId);
     } catch (e, stacktrace) {
       errorMessage.value = 'Failed to upload file: ${e.toString()}';
       print("❌ [FileListController] Error uploading file: $e");

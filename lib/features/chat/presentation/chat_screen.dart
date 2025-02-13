@@ -15,7 +15,10 @@ class ChatScreen extends StatefulWidget {
   final WorkRoomWithParticipants workRoomWithParticipants;
   final String myUserId;
 
-  const ChatScreen({Key? key, required this.workRoomWithParticipants, required this.myUserId})
+  const ChatScreen(
+      {Key? key,
+      required this.workRoomWithParticipants,
+      required this.myUserId})
       : super(key: key);
 
   @override
@@ -36,7 +39,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _chatController.loadMessages(widget.workRoomWithParticipants.workRoom.id);
+    _chatController
+        .loadMessagesByWorkRoomId(widget.workRoomWithParticipants.workRoom.id);
   }
 
   // 해당 GlobalKey의 위젯이 화면 내에 완전히 보이는지 판단하는 헬퍼 함수
@@ -51,7 +55,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return widgetTop >= 0 && widgetBottom <= screenHeight;
   }
 
-  Future<void> _waitForContext(GlobalKey key, {Duration timeout = const Duration(seconds: 1)}) async {
+  Future<void> _waitForContext(GlobalKey key,
+      {Duration timeout = const Duration(seconds: 1)}) async {
     final int intervalMs = 100;
     final int maxAttempts = timeout.inMilliseconds ~/ intervalMs;
     int attempts = 0;
@@ -68,11 +73,15 @@ class _ChatScreenState extends State<ChatScreen> {
     GlobalKey<ShakeableState>? key = _messageKeys[messageId];
 
     if (key == null || key.currentContext == null) {
-      debugPrint("Message with ID $messageId not found in current list. Attempting to fetch and insert it.");
+      debugPrint(
+          "Message with ID $messageId not found in current list. Attempting to fetch and insert it.");
       try {
-        Message missingMessage = await _chatController.getMessageById(messageId);
-        debugPrint("Fetched missing message: ID: ${missingMessage.id}, content: ${missingMessage.content}");
-        bool exists = _chatController.messages.any((msg) => msg.id == messageId);
+        Message missingMessage =
+            await _chatController.getMessageById(messageId);
+        debugPrint(
+            "Fetched missing message: ID: ${missingMessage.id}, content: ${missingMessage.content}");
+        bool exists =
+            _chatController.messages.any((msg) => msg.id == messageId);
         if (!exists) {
           setState(() {
             _chatController.messages.add(missingMessage);
@@ -91,9 +100,11 @@ class _ChatScreenState extends State<ChatScreen> {
             alignment: 1.0, // reverse 리스트에서는 1.0이 위쪽 정렬 효과
           );
           key.currentState?.shake();
-          debugPrint("ensureVisible and shake completed for fetched messageId $messageId");
+          debugPrint(
+              "ensureVisible and shake completed for fetched messageId $messageId");
         } else {
-          debugPrint("After fetching, currentContext for key of messageId $messageId is still null even after waiting.");
+          debugPrint(
+              "After fetching, currentContext for key of messageId $messageId is still null even after waiting.");
         }
       } catch (e, s) {
         debugPrint("Error fetching missing message: $e");
@@ -118,17 +129,14 @@ class _ChatScreenState extends State<ChatScreen> {
             debugPrint("StackTrace: $s");
           }
         } else {
-          debugPrint("After post frame callback, currentContext for key of messageId $messageId is still null.");
+          debugPrint(
+              "After post frame callback, currentContext for key of messageId $messageId is still null.");
         }
       });
     }
-    debugPrint("==== _scrollToMessage completed for messageId: $messageId ====");
+    debugPrint(
+        "==== _scrollToMessage completed for messageId: $messageId ====");
   }
-
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +159,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              cacheExtent: MediaQuery.of(context).size.height * 2, // 캐시 범위를 늘림
+              cacheExtent: MediaQuery.of(context).size.height * 2,
+              // 캐시 범위를 늘림
 
               reverse: true,
               itemCount: messages.length,
@@ -164,7 +173,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 return Shakeable(
                   key: messageKey,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0, vertical: 2),
                     child: MessageBubble(
                       myUserId: widget.myUserId,
                       message: message,
@@ -177,7 +187,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             _editingMessage = null;
                           } else {
                             _editingMessage = messages.firstWhere(
-                                    (msg) => msg.id == selectedMessageId);
+                                (msg) => msg.id == selectedMessageId);
                           }
                         });
                       },
@@ -187,13 +197,14 @@ class _ChatScreenState extends State<ChatScreen> {
                           context: context,
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(16)),
                           ),
                           builder: (context) => Container(
                             height: MediaQuery.of(context).size.height - 40,
                             child: ThreadScreen(
-                              parentMessageId: threadMessage.id,
-                              participantsMap: participantsMap,
+                              participantList:
+                                  widget.workRoomWithParticipants.participants,
                               workRoomId: threadMessage.workRoomId,
                             ),
                           ),
@@ -254,7 +265,6 @@ class _ChatScreenState extends State<ChatScreen> {
               });
             },
           ),
-
         ],
       );
     });

@@ -26,10 +26,10 @@ class AnnotationDisplay extends StatelessWidget {
           AnnotationOverlay(
             annotation: annotation,
             selectedRect: Rect.fromLTRB(
-              annotation.x1 ?? 0.0,
-              annotation.y1 ?? 0.0,
-              annotation.x2 ?? 0.0,
-              annotation.y2 ?? 0.0,
+              annotation.area_left ?? 0.0,
+              annotation.area_top ?? 0.0,
+              annotation.area_width ?? 0.0,
+              annotation.area_height ?? 0.0,
             ),
             isEditable: false,
             onUpdate: (_) {},

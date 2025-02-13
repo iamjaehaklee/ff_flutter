@@ -30,8 +30,18 @@ const String getUserNotificationsEdgeFunctionUrl = '$baseUrl/functions/v1/get_us
 // annotations
 const String putDocumentAnnotationEdgeFunctionUrl = '$baseUrl/functions/v1/put_document_annotation';
 
+//annotation threads
+const String getAnnotationThreadsByAnnotationIdEdgeFunctionUrl = '$baseUrl/functions/v1/get_annotation_treads_by_annotation_id';
+const String putAnnotationThreadEdgeFunctionUrl = '$baseUrl/functions/v1/put_annotation_thread';
+const String deleteAnnotationThreadEdgeFunctionUrl = '$baseUrl/functions/v1/delete_annotation_thread';
+const String updateAnnotationThreadEdgeFunctionUrl = '$baseUrl/functions/v1/update_annotation_thread';
+
+
 
 const String getUsersByIdsUrl = '$baseUrl/functions/v1/get_users_by_ids';
+
+// OCR
+const String ocrkrNaverClovaEdgeFunctionUrl = '$baseUrl/functions/v1/ocr_kr_naver_clova';
 
 
 // JWT Token
@@ -44,3 +54,4 @@ const String appSubtitle = "철저한 팩트 파악은 법률 문제 해결의 �
 
 
  const double ICON_SIZE_AT_APPBAR = 24;
+ const double BOTTOM_SHEET_TOP_MARGIN = 60;

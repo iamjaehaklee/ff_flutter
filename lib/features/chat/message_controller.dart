@@ -14,7 +14,7 @@ class MessageController extends GetxController {
   final messages = <Message>[].obs;
   final isLoading = false.obs;
 
-  Future<void> loadMessages(String workRoomId, {int limit = 20, int offset = 0}) async {
+  Future<void> loadMessagesByWorkRoomId(String workRoomId, {int limit = 20, int offset = 0}) async {
     isLoading.value = true;
     try {
       final fetchedMessages = await _messageRepository.fetchMessages(

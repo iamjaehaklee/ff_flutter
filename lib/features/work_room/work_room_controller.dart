@@ -24,23 +24,31 @@ class WorkRoomController extends GetxController {
 
   /// [WorkRoomController.fetchWorkRoomWithParticipantsByWorkRoomId]
   /// 지정된 workRoomId에 해당하는 워크룸과 참여자 정보를 로드합니다.
-  Future<void> fetchWorkRoomWithParticipantsByWorkRoomId(String workRoomId) async {
+  Future<WorkRoomWithParticipants?> fetchWorkRoomWithParticipantsByWorkRoomId(String workRoomId) async {
     print("[WorkRoomController.fetchWorkRoomWithParticipantsById] Start fetching work room with ID: $workRoomId");
+
     isLoading.value = true;
     errorMessage.value = '';
+
     try {
       final result = await _repository.getWorkRoomWithParticipantsById(workRoomId);
       workRoomWithParticipants.value = result;
+
       print("[WorkRoomController.fetchWorkRoomWithParticipantsById] Successfully fetched work room: ${result.toJson()}");
+
+      return result; // ✅ Future 반환
     } catch (e, stackTrace) {
       errorMessage.value = 'Failed to load WorkRoom: $e';
+
       print("[WorkRoomController.fetchWorkRoomWithParticipantsById] Exception: $e");
       print("[WorkRoomController.fetchWorkRoomWithParticipantsById] Stack Trace: $stackTrace");
+
+      return null; // ✅ 예외 발생 시 null 반환
     } finally {
       isLoading.value = false;
       print("[WorkRoomController.fetchWorkRoomWithParticipantsById] Finished fetching work room.");
     }
-  } // end of fetchWorkRoomWithParticipantsById
+  }
 
   /// [WorkRoomController.addWorkRoom]
   /// 새 워크룸을 추가합니다.

@@ -1,16 +1,18 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/features/authentication/auth_controller.dart';
 import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
+import 'package:legalfactfinder2025/features/document_annotation/data/document_annotation_model.dart';
 
 class MessageInput extends StatefulWidget {
   final String workRoomId;
-  final String? parentMessageId; // For threads
+  final String? parentMessageId; // 일반적인 thread의 부모 메시지 id
   final Message? editingMessage;
   final Message? replyingToMessage;
+  // 추가: annotation thread 댓글 입력용, 전달된 경우 annotation의 id를 부모로 사용
+  final DocumentAnnotationModel? annotation;
   final Future<void> Function({
   required String workRoomId,
   required String senderId,
@@ -27,6 +29,7 @@ class MessageInput extends StatefulWidget {
     this.parentMessageId,
     this.editingMessage,
     this.replyingToMessage,
+    this.annotation,
     required this.onSend,
     required this.onCancelEditingOrReplying,
   }) : super(key: key);
@@ -39,6 +42,12 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   List<File> _selectedFiles = [];
   bool _isUploading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose(); // 컨트롤러 해제
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -63,7 +72,7 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  /// Selects files for upload with detailed logging.
+  /// 파일 선택 함수
   Future<void> _pickFiles() async {
     print("[MessageInput] _pickFiles: Initiating file picking");
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -84,7 +93,7 @@ class _MessageInputState extends State<MessageInput> {
     }
   }
 
-  /// Removes a file from the selection with logging.
+  /// 파일 제거 함수
   void _removeFile(int index) {
     String removedFile = _selectedFiles[index].path.split('/').last;
     print("[MessageInput] _removeFile: Removing file: $removedFile at index: $index");
@@ -93,7 +102,7 @@ class _MessageInputState extends State<MessageInput> {
     });
   }
 
-  /// Sends or edits the message with detailed logging.
+  /// 메시지 전송 함수 (일반 메시지 및 thread 댓글 모두 지원)
   Future<void> _sendMessage() async {
     if (_controller.text.isEmpty && _selectedFiles.isEmpty) {
       print("[MessageInput] _sendMessage: Empty message and no files selected, aborting send");
@@ -118,18 +127,21 @@ class _MessageInputState extends State<MessageInput> {
         return;
       }
 
+      // parentMessageId 우선순위: replyingToMessage.id > widget.parentMessageId > widget.annotation?.id
+      final parentId = widget.replyingToMessage?.id ?? widget.parentMessageId ?? widget.annotation?.id;
+
       await widget.onSend(
         workRoomId: widget.workRoomId,
         senderId: myUserId,
         content: _controller.text.trim(),
-        parentMessageId: widget.replyingToMessage?.id ?? widget.parentMessageId,
+        parentMessageId: parentId,
         editingMessageId: widget.editingMessage?.id,
         attachments: _selectedFiles,
       );
 
       print("[MessageInput] _sendMessage: Message sent successfully");
 
-      // Reset state after sending message
+      // 전송 후 상태 리셋
       _controller.clear();
       setState(() {
         _selectedFiles.clear();
@@ -161,7 +173,7 @@ class _MessageInputState extends State<MessageInput> {
         ),
         child: Column(
           children: [
-            // Show Replying / Editing State
+            // Replying/Editing 상태 표시
             if (widget.replyingToMessage != null || widget.editingMessage != null)
               Container(
                 padding: const EdgeInsets.all(8),
@@ -177,7 +189,7 @@ class _MessageInputState extends State<MessageInput> {
                         widget.editingMessage != null
                             ? "Editing: ${widget.editingMessage!.content}"
                             : "Replying to: ${widget.replyingToMessage!.content}",
-                        style: TextStyle(color: Colors.black54, fontSize: 14),
+                        style: const TextStyle(color: Colors.black54, fontSize: 14),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -191,7 +203,7 @@ class _MessageInputState extends State<MessageInput> {
                   ],
                 ),
               ),
-
+            // 선택된 파일 미리보기 영역
             if (_selectedFiles.isNotEmpty)
               SizedBox(
                 height: 80,
@@ -238,7 +250,7 @@ class _MessageInputState extends State<MessageInput> {
                   },
                 ),
               ),
-
+            // 입력창과 첨부 파일, 전송 버튼
             Row(
               children: [
                 IconButton(

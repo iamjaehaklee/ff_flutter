@@ -98,6 +98,7 @@ class FoldersController extends GetxController {
 
       isLoading(true);
       errorMessage('');
+      print("[FoldersController] refreshFolders: Refreshing folders - currentPath.value: ${currentPath.value}");
 
       final folders =
           await _repository.listFolders(workRoomId, path: currentPath.value);
@@ -143,7 +144,7 @@ class FoldersController extends GetxController {
   }
 
   /// 폴더 삭제
-  Future<bool> deleteFolder(String folderId) async {
+  Future<bool> deleteFolder(String workRoomId, String folderId) async {
     try {
       print("[FoldersController] deleteFolder: Starting folder deletion");
       isLoading(true);
@@ -151,6 +152,8 @@ class FoldersController extends GetxController {
 
       await _repository.deleteFolder(folderId);
       print("[FoldersController] deleteFolder: Folder deleted successfully");
+      // 🟢 **추가됨:** 현재 workRoomId를 기준으로 폴더 목록 새로고침
+      await refreshFolders(workRoomId);
       return true;
     } catch (e) {
       print("[FoldersController] deleteFolder: Error occurred: $e");
@@ -158,6 +161,53 @@ class FoldersController extends GetxController {
       return false;
     } finally {
       isLoading(false);
+    }
+  }
+
+  Future<bool> renameFolder(String folderId, String newName) async {
+    print("[FoldersController] renameFolder: Starting folder rename");
+    print(
+        "[FoldersController] renameFolder: Parameters: folderId=$folderId, newName=$newName");
+
+    try {
+      final success = await _repository.renameFolder(folderId, newName);
+
+      if (success) {
+        print("[FoldersController] renameFolder: Rename successful");
+        await refreshFolders(folderId); // 목록 새로고침
+      } else {
+        print("[FoldersController] renameFolder: Rename failed");
+      }
+
+      return success;
+    } catch (e) {
+      print("[FoldersController] renameFolder: Error occurred: $e");
+      errorMessage.value = e.toString();
+      return false;
+    }
+  }
+
+  Future<bool> deleteFolderById(String folderId) async {
+    print("[FoldersController] deleteFolderById: Starting folder deletion");
+    print(
+        "[FoldersController] deleteFolderById: Parameters: folderId=$folderId");
+
+    try {
+      final success = await _repository.deleteFolder(folderId);
+
+      if (success) {
+        print("[FoldersController] deleteFolderById: Deletion successful");
+        await refreshFolders(folderId); // 목록 새로고침
+      } else {
+        print("[FoldersController] deleteFolderById: Deletion failed");
+        errorMessage.value = '폴더 내에 파일이나 하위 폴더가 있어 삭제할 수 없습니다.';
+      }
+
+      return success;
+    } catch (e) {
+      print("[FoldersController] deleteFolderById: Error occurred: $e");
+      errorMessage.value = e.toString();
+      return false;
     }
   }
 }

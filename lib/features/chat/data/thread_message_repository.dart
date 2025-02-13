@@ -19,7 +19,7 @@ class ThreadMessageRepository {
   });
 
   // Fetch messages in a thread
-  Future<List<Message>> fetchThreadMessages(String parentMessageId) async {
+  Future<List<Message>> fetchThreadMessagesByParentMessageId(String parentMessageId) async {
     final uri = Uri.parse('$getThreadMessagesEdgeFunctionUrl?parent_message_id=$parentMessageId');
 
     print("🔵 [Thread] Fetching thread messages for parent ID: $parentMessageId");

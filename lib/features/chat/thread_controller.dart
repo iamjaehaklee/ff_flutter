@@ -1,34 +1,34 @@
 import 'package:get/get.dart';
-import 'package:legalfactfinder2025/features/chat/data/thread_model.dart';
 import 'package:legalfactfinder2025/features/chat/data/thread_repository.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_tile_model.dart';
 
-class ThreadController extends GetxController {
-  final ThreadRepository _threadRepository;
+class ThreadTileListController extends GetxController {
+  final ThreadTileListRepository _threadTileListRepository;
 
-  ThreadController(this._threadRepository);
+  ThreadTileListController(this._threadTileListRepository);
 
   // Observable for threads
-  RxList<Thread> threads = <Thread>[].obs;
-  RxBool isThreadsLoading = false.obs;
+  RxList<ThreadTileModel> threadTileList = <ThreadTileModel>[].obs;
+  RxBool isThreadTileListLoading = false.obs;
 
-  Future<void> loadThreads(String workRoomId) async {
-    isThreadsLoading.value = true;
+  Future<void> loadThreadTileList(String workRoomId) async {
+    isThreadTileListLoading.value = true;
     try {
-      final List<Thread> fetchedThreads = await _threadRepository.fetchThreads(workRoomId);
-      threads.assignAll(fetchedThreads);
+      final List<ThreadTileModel> fetchedThreads = await _threadTileListRepository.fetchThreads(workRoomId);
+      threadTileList.assignAll(fetchedThreads);
     } catch (e) {
       print('Error loading threads: $e');
     } finally {
-      isThreadsLoading.value = false;
+      isThreadTileListLoading.value = false;
     }
   }
 
-  Future<void> refreshThreads(String workRoomId) async {
+  Future<void> refreshThreadTileList(String workRoomId) async {
     try {
-      final List<Thread> refreshedThreads = await _threadRepository.fetchThreads(workRoomId);
-      threads.assignAll(refreshedThreads);
+      final List<ThreadTileModel> refreshedThreadTileList = await _threadTileListRepository.fetchThreads(workRoomId);
+      threadTileList.assignAll(refreshedThreadTileList);
     } catch (e) {
-      print('Error refreshing threads: $e');
+      print('Error refreshing threadTileList: $e');
     }
   }
 }

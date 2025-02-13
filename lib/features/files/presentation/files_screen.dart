@@ -25,7 +25,7 @@ class FilesScreen extends StatelessWidget {
       foldersController.listFolders(workRoomId);
     }
     if (fileListController.fileDataList.isEmpty) {
-      fileListController.fetchFileDataList(workRoomId);
+      fileListController.fetchFileDataListByStoragePath(workRoomId);
     }
 
     void navigateToParent() {
@@ -159,64 +159,187 @@ class FilesScreen extends StatelessWidget {
                   return fileDir == currentFolderPath;
                 }).toList();
 
-                return ListView(
-                  children: [
-                    ...currentFolders.map((folder) => ListTile(
-                      dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 0),
-                          leading: Container(
-                            width: 26,
-                            height: 26,
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.folder,
-                              size: 26,
-                              color: Colors.amber,
-                            ),
+                return ListView.builder(
+                  itemCount: currentFolders.length + currentFiles.length,
+                  itemBuilder: (context, index) {
+                    if (index < currentFolders.length) {
+                      final folder = currentFolders[index];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 0),
+                        leading: Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.folder,
+                            size: 26,
+                            color: Colors.amber,
                           ),
-                          title: Text(
-                            folder.folderName ??
-                                folder.folderPath.split('/').last,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontSize: (Theme.of(context)
-                                              .textTheme
-                                              .titleMedium
-                                              ?.fontSize ??
-                                          16) *
-                                      0.9,
+                        ),
+                        title: Text(
+                          folder.folderName ??
+                              folder.folderPath.split('/').last,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: (Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.fontSize ??
+                                            16) *
+                                        0.9,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '폴더',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: (Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.fontSize ??
+                                            14) *
+                                        0.9,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          child: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, size: 20),
+                            padding: EdgeInsets.zero,
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'rename',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('이름 변경'),
+                                  ],
                                 ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            '폴더',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize: (Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.fontSize ??
-                                          14) *
-                                      0.9,
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('삭제'),
+                                  ],
                                 ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            onSelected: (value) async {
+                              if (value == 'rename') {
+                                final controller = TextEditingController(
+                                    text: folder.folderName ??
+                                        folder.folderPath.split('/').last);
+                                final newName = await showDialog<String>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('폴더 이름 변경'),
+                                    content: TextField(
+                                      controller: controller,
+                                      decoration: const InputDecoration(
+                                        labelText: '새 폴더 이름',
+                                      ),
+                                      autofocus: true,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('취소'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(
+                                            context, controller.text),
+                                        child: const Text('변경'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (newName != null &&
+                                    newName.isNotEmpty &&
+                                    newName !=
+                                        (folder.folderName ??
+                                            folder.folderPath
+                                                .split('/')
+                                                .last)) {
+                                  final success = await foldersController
+                                      .renameFolder(folder.id!, newName);
+                                  if (success && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('폴더 이름이 변경되었습니다.')),
+                                    );
+                                  }
+                                }
+                              } else if (value == 'delete') {
+                                final shouldDelete = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('폴더 삭제'),
+                                    content: const Text(
+                                        '이 폴더를 삭제하시겠습니까?\n폴더 내에 파일이나 하위 폴더가 있으면 삭제할 수 없습니다.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('취소'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: Text(
+                                          '삭제',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (shouldDelete == true) {
+                                  final success = await foldersController
+                                      .deleteFolder(workRoomId,folder.id!);
+                                  if (success && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('폴더가 삭제되었습니다.')),
+                                    );
+                                  } else if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(foldersController
+                                            .errorMessage.value),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
                           ),
-                          onTap: () {
-                            currentPath.value = folder.folderPath;
-                          },
-                        )),
-                    ...currentFiles.map((fileData) => FileListTile(
-                          workRoomId: workRoomId,
-                          fileData: fileData,
-                        )),
-                  ],
+                        ),
+                        onTap: () {
+                          currentPath.value = folder.folderPath;
+                        },
+                      );
+                    } else {
+                      final fileData =
+                          currentFiles[index - currentFolders.length];
+                      return FileListTile(
+                        workRoomId: workRoomId,
+                        fileData: fileData,
+                      );
+                    }
+                  },
                 );
               }),
             ),

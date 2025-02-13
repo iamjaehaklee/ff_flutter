@@ -146,22 +146,59 @@ class FoldersRepository {
     }
   }
 
-  /// 폴더 삭제 (soft delete)
-  Future<void> deleteFolder(String folderId) async {
+  /// 폴더 이름 변경
+  Future<bool> renameFolder(String folderId, String newName) async {
+    print("[FoldersRepository] renameFolder: Starting folder rename");
+    print(
+        "[FoldersRepository] renameFolder: folderId=$folderId, newName=$newName");
+
     try {
-      print("[FoldersRepository] deleteFolder: Starting folder deletion");
-      print("[FoldersRepository] deleteFolder: folderId=$folderId");
+      print("[FoldersRepository] renameFolder: Supabase에 폴더 이름 변경 요청");
+      await _supabase.from('folders').update({
+        'folder_name': newName,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', folderId);
 
-      await _supabase.from('folders').update(
-          {'deleted_at': DateTime.now().toIso8601String()}).eq('id', folderId);
-
-      print(
-          "[FoldersRepository] deleteFolder: Successfully marked folder as deleted");
+      print("[FoldersRepository] renameFolder: 폴더 이름 변경 성공");
+      return true;
     } catch (e) {
-      print("[FoldersRepository] deleteFolder: Error occurred: $e");
-      print(
-          "[FoldersRepository] deleteFolder: Stack trace: ${StackTrace.current}");
-      rethrow;
+      print("[FoldersRepository] renameFolder: 오류 발생: $e");
+      return false;
+    }
+  }
+
+  /// 폴더 삭제 (하위 폴더 및 파일 확인)
+  Future<bool> deleteFolder(String folderId) async {
+    print("[FoldersRepository] deleteFolder: Starting folder deletion");
+    print("[FoldersRepository] deleteFolder: folderId=$folderId");
+
+    try {
+      // 하위 폴더 확인
+      final subFolders =
+          await _supabase.from('folders').select().eq('parent_id', folderId);
+
+      if (subFolders.isNotEmpty) {
+        print("[FoldersRepository] deleteFolder: 하위 폴더가 존재하여 삭제 불가");
+        return false;
+      }
+
+      // 폴더 내 파일 확인
+      final files =
+          await _supabase.from('files').select().eq('folder_id', folderId);
+
+      if (files.isNotEmpty) {
+        print("[FoldersRepository] deleteFolder: 폴더 내 파일이 존재하여 삭제 불가");
+        return false;
+      }
+
+      print("[FoldersRepository] deleteFolder: Supabase에서 폴더 삭제 요청");
+      await _supabase.from('folders').delete().eq('id', folderId);
+      print("[FoldersRepository] deleteFolder: 폴더 삭제 성공");
+
+      return true;
+    } catch (e) {
+      print("[FoldersRepository] deleteFolder: 오류 발생: $e");
+      return false;
     }
   }
 }

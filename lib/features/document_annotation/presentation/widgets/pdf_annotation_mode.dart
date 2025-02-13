@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/input_annotation_bottom_sheet.dart';
+import 'package:legalfactfinder2025/features/document_annotation/presentation/widgets/annotation_input_form.dart';
 import 'package:legalfactfinder2025/features/files/presentation/widgets/annotation_overlay_wrapper.dart';
 import 'dart:typed_data';
 

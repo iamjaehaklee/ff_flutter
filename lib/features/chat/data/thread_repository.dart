@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:legalfactfinder2025/features/chat/data/thread_model.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_tile_model.dart';
 import 'package:legalfactfinder2025/core/network/api_exception.dart';
 
-class ThreadRepository {
+class ThreadTileListRepository {
   final String getThreadsEdgeFunctionUrl;
   final String jwtToken;
 
-  ThreadRepository({
+  ThreadTileListRepository({
     required this.getThreadsEdgeFunctionUrl,
     required this.jwtToken,
   });
 
-  Future<List<Thread>> fetchThreads(String workRoomId) async {
+  Future<List<ThreadTileModel>> fetchThreads(String workRoomId) async {
     final uri = Uri.parse(getThreadsEdgeFunctionUrl);
     final requestBody = jsonEncode({"p_work_room_id": workRoomId});
 
@@ -43,7 +43,7 @@ class ThreadRepository {
         }
 
         return threadsData
-            .map((threadJson) => Thread.fromJson(threadJson as Map<String, dynamic>))
+            .map((threadJson) => ThreadTileModel.fromJson(threadJson as Map<String, dynamic>))
             .toList();
       } else {
         throw ApiException(

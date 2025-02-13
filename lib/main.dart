@@ -13,7 +13,9 @@ import 'package:legalfactfinder2025/features/chat/thread_controller.dart';
 import 'package:legalfactfinder2025/features/chat/data/thread_message_repository.dart';
 import 'package:legalfactfinder2025/features/chat/thread_message_controller.dart';
 import 'package:legalfactfinder2025/features/document_annotation/annotation_controller.dart';
+import 'package:legalfactfinder2025/features/document_annotation/annotation_thread_controller.dart';
 import 'package:legalfactfinder2025/features/document_annotation/data/annotation_repository.dart';
+import 'package:legalfactfinder2025/features/document_annotation/data/annotation_thread_repository.dart';
 import 'package:legalfactfinder2025/features/files/data/file_repository.dart';
 import 'package:legalfactfinder2025/features/files/data/folders_repository.dart';
 import 'package:legalfactfinder2025/features/files/file_list_controller.dart';
@@ -81,6 +83,7 @@ void main() async {
     // 예: initialMessage.data를 기반으로 특정 화면으로 네비게이션 처리 가능
   }
 
+  // Get.put(AnnotationThreadController(repository: AnnotationThreadRepository()));
 
   Get.put(FoldersController());
   Get.put(FileListController());
@@ -133,11 +136,11 @@ void main() async {
   Get.put(MessageController(messageRepository)); // Register ChatController
 
   // ThreadRepository 및 Controller 초기화
-  final threadRepository = ThreadRepository(
+  final threadRepository = ThreadTileListRepository(
     getThreadsEdgeFunctionUrl: getThreads_EdgeFunctionUrl,
     jwtToken: jwtToken,
   );
-  Get.put(ThreadController(threadRepository)); // Register ThreadController
+  Get.put(ThreadTileListController(threadRepository)); // Register ThreadController
 
   // ThreadMessageRepository 및 Controller 초기화
   final threadMessageRepository = ThreadMessageRepository(

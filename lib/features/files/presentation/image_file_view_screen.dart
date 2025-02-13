@@ -1,22 +1,25 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:legalfactfinder2025/app/widgets/custom_bottom_sheet.dart';
 import 'package:legalfactfinder2025/features/document_annotation/annotation_controller.dart';
-import 'package:legalfactfinder2025/features/document_annotation/data/annotation_repository.dart';
 import 'package:legalfactfinder2025/features/files/file_view_controller.dart';
+import 'package:legalfactfinder2025/features/work_room/data/work_room_with_participants_model.dart';
 import 'dart:ui' as ui;
-import 'package:image/image.dart' as img;
 
 class ImageFileViewScreen extends StatefulWidget {
   final String workRoomId;
   final String fileName;
+  final String storageKey;
+  final WorkRoomWithParticipants workRoomWithParticipants;
 
   const ImageFileViewScreen({
     Key? key,
     required this.workRoomId,
     required this.fileName,
+    required this.storageKey,
+    required this.workRoomWithParticipants,
   }) : super(key: key);
 
   @override
@@ -32,9 +35,8 @@ class _ImageFileViewScreenState extends State<ImageFileViewScreen>
 
   bool _isAnnotationMode = false;
   Rect? _selectedRect;
-  ui.Image? _croppedImage;
 
-   final AnnotationController _annotationController = Get.put(AnnotationController());
+  final AnnotationController _annotationController = Get.put(AnnotationController());
 
   @override
   void initState() {
@@ -74,17 +76,16 @@ class _ImageFileViewScreenState extends State<ImageFileViewScreen>
     });
   }
 
-  Future<void> _showBottomSheet(BuildContext context) async {
+  Future<void> _showAnnotationBottomSheet(BuildContext context) async {
     String annotationText = "";
 
-    showModalBottomSheet(
+    showCustomBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      titleBuilder: (setModalState) => const Text(
+        "Enter Annotation",
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
-      builder: (context) {
+      contentBuilder: (context) {
         return Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -138,6 +139,7 @@ class _ImageFileViewScreenState extends State<ImageFileViewScreen>
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -167,7 +169,7 @@ class _ImageFileViewScreenState extends State<ImageFileViewScreen>
                 ? (details) => _updateDrawing(details.localPosition)
                 : null,
             onTapUp: _isAnnotationMode
-                ? (details) async => await _showBottomSheet(context)
+                ? (details) async => await _showAnnotationBottomSheet(context)
                 : null,
             child: Image.file(
               file,

@@ -79,7 +79,7 @@ class FileActionMenu extends StatelessWidget {
                 final newName = textController.text.trim();
                 if (newName.isNotEmpty) {
                   // Call controller to rename the file
-                  controller.fetchFileDataList(file.workRoomId); // Refresh the file list
+                  controller.fetchFileDataListByStoragePath(file.workRoomId); // Refresh the file list
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Renamed to $newName')),

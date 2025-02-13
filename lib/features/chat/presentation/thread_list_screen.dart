@@ -2,23 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/features/chat/thread_controller.dart';
 import 'package:legalfactfinder2025/features/chat/presentation/thread_screen.dart';
-import 'package:legalfactfinder2025/features/chat/data/thread_model.dart';
+import 'package:legalfactfinder2025/features/chat/data/thread_tile_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/participant_model.dart';
 
 class ThreadListScreen extends StatelessWidget {
   final String workRoomId;
-  final Map<String, String> participantsMap;
+  final List<Participant> participantList;
 
   const ThreadListScreen({
     Key? key,
     required this.workRoomId,
-    required this.participantsMap,
+    required this.participantList,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final ThreadController threadController = Get.find<ThreadController>();
+    final ThreadTileListController threadController =
+        Get.find<ThreadTileListController>();
 
-    threadController.loadThreads(workRoomId);
+    threadController.loadThreadTileList(workRoomId);
 
     return Column(
       children: [
@@ -38,11 +40,11 @@ class ThreadListScreen extends StatelessWidget {
         ),
         Expanded(
           child: Obx(() {
-            if (threadController.isThreadsLoading.value) {
+            if (threadController.isThreadTileListLoading.value) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final threads = threadController.threads;
+            final threads = threadController.threadTileList;
 
             if (threads.isEmpty) {
               return const Center(child: Text("No threads available."));
@@ -51,21 +53,29 @@ class ThreadListScreen extends StatelessWidget {
             return ListView.builder(
               itemCount: threads.length,
               itemBuilder: (context, index) {
-                final thread = threads[index];
-                final parent = thread.parentMessage;
-                final child = thread.childMessage;
+                final threadTileModel = threads[index];
+                final parent = threadTileModel.parent;
+                final child = threadTileModel.child;
+
+                // 🔹 `participantList`에서 senderId에 해당하는 참가자 찾기
+                final parentParticipant = participantList
+                    .firstWhereOrNull((p) => p.userId == parent.senderId);
+                final childParticipant = child != null
+                    ? participantList
+                        .firstWhereOrNull((p) => p.userId == child.senderId)
+                    : null;
 
                 return ListTile(
                   leading: CircleAvatar(
                     radius: 16,
                     child: Text(
-                      participantsMap[parent.senderId]?[0] ?? 'U',
+                      parentParticipant?.username[0] ?? 'U',
                     ),
                   ),
                   title: Row(
                     children: [
                       Text(
-                        "${participantsMap[parent.senderId] ?? 'Unknown'}: ",
+                        "${parentParticipant?.username ?? 'Unknown'}: ",
                         style: const TextStyle(fontSize: 12),
                       ),
                       Expanded(
@@ -84,7 +94,7 @@ class ThreadListScreen extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (child.content.isNotEmpty)
+                      if (child != null && child.content.isNotEmpty)
                         Row(
                           children: [
                             const Text(
@@ -95,13 +105,13 @@ class ThreadListScreen extends StatelessWidget {
                             CircleAvatar(
                               radius: 8,
                               child: Text(
-                                participantsMap[child.senderId]?[0] ?? 'U',
+                                childParticipant?.username[0] ?? 'U',
                                 style: const TextStyle(fontSize: 8),
                               ),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              "${participantsMap[child.senderId] ?? 'Unknown'}",
+                              "${childParticipant?.username ?? 'Unknown'}",
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.grey),
                             ),
@@ -131,9 +141,8 @@ class ThreadListScreen extends StatelessWidget {
                       builder: (context) => SizedBox(
                         height: MediaQuery.of(context).size.height - 40,
                         child: ThreadScreen(
-                          parentMessageId: parent.id,
                           workRoomId: workRoomId,
-                          participantsMap: participantsMap,
+                          participantList: participantList,
                         ),
                       ),
                     );

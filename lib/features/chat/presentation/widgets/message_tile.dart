@@ -3,17 +3,18 @@ import 'package:get/get.dart';
 import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
 import 'package:legalfactfinder2025/features/users/users_controller.dart';
 import 'package:legalfactfinder2025/features/users/data/user_model.dart';
+import 'package:legalfactfinder2025/features/work_room/data/participant_model.dart';
 
 class MessageTile extends StatelessWidget {
   final Message message;
-  final Map<String, String> participantsMap; // Map of senderId to username
+  final List<Participant> participantList; // List of participants
   final void Function(Message)? onReply;
   final void Function(Message)? onEdit;
 
   const MessageTile({
     Key? key,
     required this.message,
-    required this.participantsMap,
+    required this.participantList,
     this.onReply,
     this.onEdit,
   }) : super(key: key);
@@ -27,24 +28,37 @@ class MessageTile extends StatelessWidget {
       child: FutureBuilder<Map<String, UserModel>>(
         future: usersController.getUsersByIds([message.senderId]),
         builder: (context, snapshot) {
+          // 사용자 정보 가져오기
           final UserModel? user =
-              snapshot.hasData ? snapshot.data![message.senderId] : null;
-          final username = user?.username ??
-              participantsMap[message.senderId] ??
+          (snapshot.hasData && snapshot.data != null)
+              ? snapshot.data![message.senderId]
+              : null;
+
+          // 참가자 리스트에서 senderId가 일치하는 참가자 찾기
+          final Participant? participant = participantList.firstWhereOrNull(
+                  (p) => p.userId == message.senderId);
+
+          // 최종적으로 사용할 사용자명
+          final String username = user?.username ??
+              participant?.username ??
               "Unknown User";
 
+          // 사용자 이미지 가져오기
+          final String? profileImage =
+              user?.imageFileStorageKey ?? participant?.imageFileStorageKey;
+
           return ListTile(
-            leading: user?.imageFileStorageKey != null
+            leading: profileImage != null && profileImage.isNotEmpty
                 ? CircleAvatar(
-                    backgroundImage: NetworkImage(user!.imageFileStorageKey!),
-                  )
+              backgroundImage: NetworkImage(profileImage),
+            )
                 : CircleAvatar(
-                    backgroundColor: Colors.grey[300],
-                    child: Text(
-                      username.isNotEmpty ? username[0].toUpperCase() : "?",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+              backgroundColor: Colors.grey[300],
+              child: Text(
+                username.isNotEmpty ? username[0].toUpperCase() : "?",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             title: Text(
               username,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),

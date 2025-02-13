@@ -45,4 +45,21 @@ class UsersController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Future<UserModel?> getUserById(String userId) async {
+    // 이미 저장된 사용자 정보가 있으면 바로 반환
+    if (usersData.containsKey(userId)) {
+      return usersData[userId];
+    }
+
+    // 저장된 정보가 없으면, repository로부터 가져와서 업데이트
+    try {
+      await _fetchAndStoreUsersByIds([userId]);
+      // 가져온 후 다시 확인하여 반환 (없으면 null)
+      return usersData.containsKey(userId) ? usersData[userId] : null;
+    } catch (e) {
+      errorMessage.value = "Failed to load user: $e";
+      return null;
+    }
+  }
 }

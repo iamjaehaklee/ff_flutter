@@ -98,7 +98,7 @@ class _WorkRoomUIState extends State<WorkRoomUI> {
                 ),
                 builder: (context) => ThreadListScreen(
                   workRoomId: widget.workRoomWithParticipants.workRoom.id,
-                  participantsMap: widget.participantsMap,
+                  participantList: widget.workRoomWithParticipants.participants,
                 ),
               );
             }, // end of onTap

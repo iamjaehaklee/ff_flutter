@@ -1,31 +1,38 @@
 import 'package:get/get.dart';
 import 'package:legalfactfinder2025/features/chat/data/message_model.dart';
 import 'package:legalfactfinder2025/features/chat/data/thread_message_repository.dart';
+import 'package:legalfactfinder2025/features/document_annotation/data/annotation_repository.dart';
 
 class ThreadMessageController extends GetxController {
-  final ThreadMessageRepository _repository;
+  final ThreadMessageRepository threadMessageRepository;
 
-  ThreadMessageController(this._repository);
+  ThreadMessageController(
+    this.threadMessageRepository,
+  );
 
   var threadMessages = <Message>[].obs;
   var parentMessage = Rxn<Message>(); // Parent message observable
   var isLoading = false.obs;
 
   // Fetch messages in a thread
-  Future<void> loadThreadMessages(String parentMessageId) async {
+  Future<void> loadParentMessageAndThreadMessageList(
+      String parentMessageId) async {
     isLoading.value = true;
     try {
       print("🔵 [Thread] Loading messages for parent ID: $parentMessageId");
 
       // Fetch thread messages
-      final fetchedMessages = await _repository.fetchThreadMessages(parentMessageId);
+      final fetchedMessages = await threadMessageRepository
+          .fetchThreadMessagesByParentMessageId(parentMessageId);
       threadMessages.value = fetchedMessages;
 
       // Fetch parent message
-      final fetchedParentMessage = await _repository.fetchParentMessage(parentMessageId);
+      final fetchedParentMessage =
+          await threadMessageRepository.fetchParentMessage(parentMessageId);
       parentMessage.value = fetchedParentMessage;
 
-      print("✅ [Thread] Successfully loaded ${fetchedMessages.length} messages.");
+      print(
+          "✅ [Thread] Successfully loaded ${fetchedMessages.length} messages.");
     } catch (e) {
       print("❌ [Thread] Error loading messages: $e");
       Get.snackbar("Error", "Failed to load thread messages.");
@@ -43,7 +50,7 @@ class ThreadMessageController extends GetxController {
   }) async {
     try {
       print("🔵 [Thread] Sending message: $content");
-      final newMessage = await _repository.sendThreadMessage(
+      final newMessage = await threadMessageRepository.sendThreadMessage(
         workRoomId: workRoomId,
         senderId: senderId,
         content: content,
@@ -64,11 +71,12 @@ class ThreadMessageController extends GetxController {
     try {
       print("🔵 [Thread] Editing message ID: $messageId");
 
-      await _repository.updateThreadMessage(messageId, newContent);
+      await threadMessageRepository.updateThreadMessage(messageId, newContent);
 
       final index = threadMessages.indexWhere((msg) => msg.id == messageId);
       if (index != -1) {
-        final updatedMessage = threadMessages[index].copyWith(content: newContent);
+        final updatedMessage =
+            threadMessages[index].copyWith(content: newContent);
         threadMessages[index] = updatedMessage;
         update(); // UI 갱신
         print("✅ [Thread] Message edited successfully.");
@@ -80,18 +88,20 @@ class ThreadMessageController extends GetxController {
       Get.snackbar("Error", "Failed to edit message.");
     }
   }
+
   Future<void> updateHighlight(String messageId, String highlight) async {
     try {
-      await _repository.updateHighlight(messageId, highlight);
+      await threadMessageRepository.updateHighlight(messageId, highlight);
       Get.snackbar('Success', 'Message marked as important');
     } catch (e) {
       Get.snackbar('Error', 'Failed to mark message as important');
     }
   }
+
   // ✅ Delete a thread message and update UI
   Future<void> deleteThreadMessage(String messageId) async {
     try {
-      await _repository.deleteThreadMessage(messageId);
+      await threadMessageRepository.deleteThreadMessage(messageId);
 
       // Remove from local list
       threadMessages.removeWhere((msg) => msg.id == messageId);

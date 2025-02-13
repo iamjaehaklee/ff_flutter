@@ -13,8 +13,10 @@ class FileViewController extends GetxController {
   RxBool isLoading = false.obs;
   RxString errorMessage = ''.obs;
 
-  Future<void> loadFile(String bucketName, String filePath, String fileName) async {
-    debugPrint("FileViewController: 파일 로딩 시작 [$bucketName/$filePath/$fileName]");
+  Future<void> loadFile(
+      String bucketName, String filePath, String fileName) async {
+    debugPrint(
+        "FileViewController: 파일 로딩 시작 [$bucketName/$filePath/$fileName]");
 
     try {
       isLoading.value = true;
@@ -30,10 +32,12 @@ class FileViewController extends GetxController {
 
       if (downloadedFile == null) {
         errorMessage.value = "Failed to load file.";
-        debugPrint("FileViewController: 파일 다운로드 실패 [$bucketName/$filePath/$fileName]");
+        debugPrint(
+            "FileViewController: 파일 다운로드 실패 [$bucketName/$filePath/$fileName]");
       } else {
         file.value = downloadedFile;
-        debugPrint("FileViewController: 파일 다운로드 성공 - 경로: ${downloadedFile.path}");
+        debugPrint(
+            "FileViewController: 파일 다운로드 성공 - 경로: ${downloadedFile.path}");
       }
     } catch (e, stackTrace) {
       errorMessage.value = "An error occurred: $e";
